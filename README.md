@@ -3,7 +3,7 @@ Clean up CAT (Comparative Annotation Toolkit) annotations
 
 ## Why
 
-[CAT](https://github.com/ComparativeGenomicsToolkit/Comparative-Annotation-Toolkit) is a powerful tool that can make high-quality annotations for cross-species analysis. But its GFF3 files can pose a few problems for cross-species DE analysis.
+[CAT](https://github.com/ComparativeGenomicsToolkit/Comparative-Annotation-Toolkit) makes good annotations for cross-species analysis. But its GFF3 files can pose problems for cross-species DE analysis.
 
 ### What's wrong
 
