@@ -5,6 +5,12 @@ Clean up CAT (Comparative Annotation Toolkit) annotations
 
 [CAT](https://github.com/ComparativeGenomicsToolkit/Comparative-Annotation-Toolkit) makes good annotations for cross-species analysis. But its GFF3 files can pose problems for cross-species DE analysis.
 
+## Requirements
+
+[gffutils](https://daler.github.io/gffutils/)
+
+[liftOff](https://github.com/agshumate/Liftoff)
+
 ### What's wrong
 
 * Mitochondrial annotations tend to be messed up
