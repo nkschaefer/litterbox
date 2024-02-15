@@ -16,6 +16,8 @@ def parse_args():
 Can be gzipped.", required=True)
     parser.add_argument("--allowlist", "-a", help="List of allowed gene IDs \
 and their names.", required=True)
+    parser.add_argument("--mito", "-m", help="List of allowed gene IDs and \
+and their names, on the mitochondrial genome.", required=False)
     return parser.parse_args()
 
 def main(args):
@@ -28,6 +30,14 @@ def main(args):
         if len(dat) >= 2:
             ensg2n[dat[0]] = dat[1]
     f.close()
+    if options.mito is not None:
+        f = open(options.mito, 'r')
+        for line in f:
+            line = line.rstrip()
+            dat = line.split('\t')
+            if len(dat) >= 2:
+                ensg2n[dat[0]] = dat[1]
+        f.close()
 
     f = None
     is_gz = False
