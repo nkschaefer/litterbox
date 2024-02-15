@@ -31,7 +31,11 @@ Clean up CAT (Comparative Annotation Toolkit) annotations
  4. Run [liftOff](https://github.com/agshumate/Liftoff) to lift the mitochondrial GTF from the hg38 mitochondrial sequence onto your organism
  5. Add these mitochondrial annotations to your annotation from the section above using `cat`
 
-#### Make a new version of the 10X Human annotation with the names you used in the CAT annotation
+#### Make a new version of the human annotation with the names you used in the CAT annotation
+ 1. Run `alter_gene_names_human.py` using your allow list from the first section and your human GTF. Outputs a new human GTF
 
+#### Index everything and run your alignments
+
+Giddy up
 
 
