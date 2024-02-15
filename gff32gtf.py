@@ -3,13 +3,15 @@ import gffutils
 import sys
 import os
 import argparse
-
+"""
+Convert a (CAT) GFF3 to GTF, fixing sort order and adding gene_name and
+gene_id fields where necessary so cellranger-arc mkref doesn't complain.
+"""
 def parse_args():
-    parser = argparse.ArgumentParser(description="Convert GFF3 to GTF, preserving order so cellranger-arc mkref doesn't complain.")
+    parser = argparse.ArgumentParser(description="__doc__")
     parser.add_argument("--gff3", "-g", help="Input GFF3 file", required=True)
     parser.add_argument("--output_prefix", "-o", help="Prefix for output files", required=True)
     return parser.parse_args()
-
 
 gtf_dialect = {'field separator': '; ', \
     'fmt': 'gtf', \
@@ -20,20 +22,11 @@ gtf_dialect = {'field separator': '; ', \
     'repeated keys': False, \
     'trailing semicolon': True}
 
-
 def recurse_children(db, child):
     
     if child.featuretype == "intron":
         return
 
-    #if "Parent" in child.attributes:
-    #    del child.attributes["Parent"]
-    """
-    if child.featuretype != 'gene':
-        print(child.featuretype)
-        print(child.attributes)
-        exit()
-    """
     child.dialect = gtf_dialect
     
     # This stuff is needed by cellranger-atac mkref
@@ -63,8 +56,10 @@ def main(args):
     if os.path.isfile('{}.db'.format(options.output_prefix)):
         db = gffutils.interface.FeatureDB('{}.db'.format(options.output_prefix))
     else:
-        db = gffutils.create_db(options.gff3, dbfn="{}.db".format(options.output_prefix), force=True, \
-            keep_order=False, sort_attribute_values=False, merge_strategy="create_unique")
+        db = gffutils.create_db(options.gff3, dbfn="{}.db".format(options.output_prefix),\
+            force=True, keep_order=False, sort_attribute_values=False,\
+            merge_strategy="create_unique")
+    
     for gene in db.features_of_type('gene'):
         recurse_children(db, gene)
 
