@@ -31,6 +31,8 @@ remove (ENSG IDs).", required=True)
 (should be a file)", required=False)
     parser.add_argument("--rename_contigs", "-rc", help="A file mapping old -> new contig \
 names (tab separated, optional)", required=False)
+    parser.add_argument("--drop_denovo", "-d", action="store_true", help="Set this option \
+to remove all de novo predicted genes (not based on homology)")
     return parser.parse_args()
 
 def get_tags(dat):
@@ -97,8 +99,6 @@ def main(args):
     gene_txcounts = Counter()
     tx_rm = set([])
 
-    tx_disallowed = set(['possible_paralog', 'poor_alignment'])
-
     gene_cand_name = {}
     
     # Make two passes
@@ -141,6 +141,9 @@ def main(args):
                     if 'transcript_class' not in tags:
                         txrm = True
                     elif tags['transcript_class'] == 'poor_alignment':
+                        txrm = True
+                    elif options.drop_denovo and tags['transcript_class'] in \
+                        ['possible_paralog', 'putative_novel_isoform', 'putative_novel']:
                         txrm = True
                     elif tags['transcript_class'] == 'possible_paralog':
                         # Check the exon RNA support field.
