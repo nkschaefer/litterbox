@@ -19,9 +19,9 @@ def parse_args():
         help="Latest GENCODE gtf (can be gzipped)", required=True)
     parser.add_argument("--hgnc_ens", "-he", help="File with 3 (tab separated) columns: \
 HGNC ID, HGNC approved symbol, Ensembl ID (or blank if missing)", required=True)
-    parser.add_argument("--mito", "-m", help="Set to print a list of mitochondrial gene \
-IDs. Default: print an allow list of other (non-mitochondrial) genes and their preferred \
-names.", action="store_true")
+    parser.add_argument("--output_prefix", "-o", help="Prefix for output files. Will write a list of allowed \
+gene IDs, allowed transcript IDs, and allowed gene and transcript IDs for mitochondrion.", required=True)
+    parser.add_argument("--mito", help="Name of mitochondrial sequence. Default = chrM", default="chrM")
     return parser.parse_args()
 
 def main(args):
@@ -39,7 +39,7 @@ def main(args):
         if len(dat[1]) > 0:
             hgnc2name[dat[0]] = dat[1]
     f.close()
-
+    
     # List of allowable biotypes from 10X Genomics:
     # https://www.10xgenomics.com/support/software/cell-ranger/downloads/cr-ref-build-steps)
 
@@ -50,9 +50,8 @@ def main(args):
 
     # List of non-allowable tags:
     
-    disallow_tag = set(['readthrough_transcript', 'PAR'])
-
-    mito = set(['chrM', 'chrMT', 'MT', 'M'])
+    disallow_tag = set(['readthrough_transcript', 'readthrough_gene', 'PAR', \
+        'fragmented_locus', 'low_sequence_quality'])
 
     f_gz = False
     f = None
@@ -62,6 +61,11 @@ def main(args):
     else:
         f_gz = False
         f = open(options.gtf, 'r')
+    
+    out_gene = open('{}.genes'.format(options.output_prefix), 'w')
+    out_tx = open('{}.tx'.format(options.output_prefix), 'w')
+    out_gene_mito = open('{}.mito'.format(options.output_prefix), 'w')
+    out_tx2gene = open('{}.tx2gene'.format(options.output_prefix), 'w')
 
     for line in f:
         if f_gz:
@@ -71,44 +75,62 @@ def main(args):
         if line[0] != '#':
             dat = line.split('\t')
             
-            if (options.mito and dat[0] in mito) or \
-                (not options.mito and dat[0] not in mito):
-                if dat[2] == 'gene':
-                    has_allowed_type = False
-                    has_disallowed_tag = False
-                    tags = {}
-                    for elt in dat[8].strip().rstrip(';').split(';'):
-                        elt = elt.strip()
-                        k, v = elt.split(' ')
-                        v = v.strip('"')
-                        tags[k] = v
+            if dat[2] == 'gene' or dat[2] == 'transcript':
+                has_allowed_type = False
+                has_disallowed_tag = False
+                tags = {}
+                for elt in dat[8].strip().rstrip(';').split(';'):
+                    elt = elt.strip()
+                    k, v = elt.split(' ')
+                    v = v.strip('"')
+                    tags[k] = v
+                    if dat[2] == 'gene':
                         if k == 'gene_type' and v in allow_biotype:
                             has_allowed_type = True
                         elif k == 'tag' and v in disallow_tag:
                             has_disallowed_tag = True
+                    elif dat[2] == 'transcript':
+                        if k == 'transcript_type' and v in allow_biotype:
+                            has_allowed_type = True
+                        elif k == 'tag' and v in disallow_tag:
+                            has_disallowed_tag = True
+                
+                if dat[2] == 'transcript':
+                    print("{}\t{}".format(tags['transcript_id'].split('.')[0], \
+                        tags['gene_id'].split('.')[0]), file=out_tx2gene)
 
-                    if has_allowed_type and not has_disallowed_tag:
-                        if 'gene_id' in tags:
-                            ensg = tags['gene_id'].split('.')[0]
-                            name = tags['gene_name']
-                            if name == ensg:
-                                if ensg in ens2name:
-                                    name = ens2name[ensg]
-                            elif ensg in ens2name and ens2name[ensg] != name:
+                if has_allowed_type and not has_disallowed_tag:
+                    if 'gene_id' in tags:
+                        ensg = tags['gene_id'].split('.')[0]
+                        name = tags['gene_name']
+                        if name == ensg:
+                            if ensg in ens2name:
                                 name = ens2name[ensg]
-                            
-                            havana = ""
-                            if 'havana_gene' in tags:
-                                havana = tags['havana_gene'].split('.')[0]
-                            hgnc = ""
-                            if 'hgnc_id' in tags:
-                                hgnc = tags['hgnc_id']
-                                if hgnc in hgnc2name and hgnc2name[hgnc] != name:
-                                    name = hgnc2name[hgnc]
-
-                            print("{}\t{}\t{}\t{}".format(ensg, name, hgnc, havana))
-    
+                        elif ensg in ens2name and ens2name[ensg] != name:
+                            name = ens2name[ensg]
+                        
+                        hgnc = ""
+                        if 'hgnc_id' in tags:
+                            hgnc = tags['hgnc_id']
+                            if hgnc in hgnc2name and hgnc2name[hgnc] != name:
+                                name = hgnc2name[hgnc]
+                        
+                        if dat[2] == 'gene':
+                            if dat[0] == options.mito:
+                                print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene_mito)
+                            else:
+                                print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene)
+                        else:
+                            if 'transcript_id' in tags:
+                                enst = tags['transcript_id'].split('.')[0]
+                                if dat[0] != options.mito:
+                                    print(enst, file=out_tx)
     f.close()
+    out_gene.close()
+    out_tx.close()
+    out_gene_mito.close()
+    out_tx2gene.close()
+
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

@@ -23,16 +23,15 @@ After this, still need to add in mitochondrial annotations.
 def parse_args():
     parser = argparse.ArgumentParser(description="__doc__")
     parser.add_argument("--gtf", "-g", help="GTF to filter", required=True)
-    parser.add_argument("--allowlist", "-a", help="Filtered list of allowed ENSG and name, \
-tab separated, plus optional additional columns at the end (ignored)", required=True)
-    parser.add_argument("--mito_genes", "-m", help="A list of mitochondrial gene IDs to \
-remove (ENSG IDs).", required=True)
+    parser.add_argument("--allowlist_base", "-a", help="Output prefix from get_allowlist.py run", \
+        required=True)
     parser.add_argument("--excl_contigs", "-ec", help="An optional list of contigs to remove \
 (should be a file)", required=False)
     parser.add_argument("--rename_contigs", "-rc", help="A file mapping old -> new contig \
 names (tab separated, optional)", required=False)
     parser.add_argument("--drop_denovo", "-d", action="store_true", help="Set this option \
 to remove all de novo predicted genes (not based on homology)")
+    parser.add_argument("--output_prefix", "-o", required=True, help="Prefix for output files")
     return parser.parse_args()
 
 def get_tags(dat):
@@ -55,7 +54,7 @@ def main(args):
     options = parse_args()
 
     g2n = {}
-    f = open(options.allowlist, 'r')
+    f = open('{}.genes'.format(options.allowlist_base), 'r')
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
@@ -64,12 +63,27 @@ def main(args):
         g2n[ensg] = name
     f.close()
 
+    tx_pass = set([])
+    f = open('{}.tx'.format(options.allowlist_base), 'r')
+    for line in f:
+        line = line.rstrip()
+        tx_pass.add(line)
+    f.close()
+
     mito = set([])
-    f = open(options.mito_genes, 'r')
+    f = open('{}.mito'.format(options.allowlist_base), 'r')
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
         mito.add(dat[0])
+    f.close()
+    
+    tx2gene = {}
+    f = open('{}.tx2gene'.format(options.allowlist_base), 'r')
+    for line in f:
+        line = line.rstrip()
+        dat = line.split('\t')
+        tx2gene[dat[0]] = dat[1]
     f.close()
 
     contigs_excl = set([])
@@ -90,17 +104,13 @@ def main(args):
                 contigs_rename[dat[0]] = dat[1]
         f.close()
 
-    # Also want to exclude mitochondrial sequences, since we have to re-do them
-    contigs_excl.add('chrM')
-    contigs_excl.add('MT')
-    contigs_excl.add('M')
-    contigs_excl.add('chrMT')
-
     gene_txcounts = Counter()
     tx_rm = set([])
 
     gene_cand_name = {}
     
+    gene2source = {}
+
     # Make two passes
     f = None
     f_gz = False
@@ -127,17 +137,28 @@ def main(args):
                     # Look up ENS ID to see if it passes
                     ensg = tags['source_gene']
                     ensg = ensg.split('.')[0]
+                    gene2source[tags['gene_id']] = ensg
                     
                     if ensg not in mito and ensg in g2n:
                         gene_cand_name[tags['gene_id']] = g2n[ensg]
+                
                 else:
                     # Store name for gene and wait
-                    gene_cand_name[tags['gene_id']] = tags['gene_name']
-            
+                    if 'gene_name' in tags:
+                        gene_cand_name[tags['gene_id']] = tags['gene_name']
+                    elif 'source_gene_common_name' in tags:
+                        gene_cand_name[tags['gene_id']] = tags['source_gene_common_name'].split('.')[0]
+                    else:
+                        gene_cand_name[tags['gene_id']] = tags['gene_id']
+
             elif dat[2] == 'transcript':
-                if 'source_gene' not in tags or tags['source_gene'] == 'None':
+                txrm = False
+                if 'source_transcript' in tags:
+                    enst = tags['source_transcript'].split('.')[0]
+                    if enst not in tx_pass:
+                        txrm = True
+                elif 'source_gene' not in tags or tags['source_gene'] == 'None':
                     # This is predicted transcript not based on homology
-                    txrm = False
                     if 'transcript_class' not in tags:
                         txrm = True
                     elif tags['transcript_class'] == 'poor_alignment':
@@ -161,20 +182,22 @@ def main(args):
                             if 'pacbio_isoform_supported' in tags and \
                                 tags['pacbio_isoform_supported'] == 'True':
                                 pacbio_support = True
-
-                            if not rna_support and not pacbio_support:
+                            
+                            if ref_support and (rna_support or pacbio_support):
+                                # Keep it
+                                pass
+                            else:
                                 txrm = True
-                    if txrm:
-                        tx_rm.add(tags['transcript_id'])
-                    else:
-                        gid = tags['Parent']
-                        gene_txcounts[gid] += 1
+                if txrm:
+                    tx_rm.add(tags['transcript_id'])
                 else:
-                    # Gene will be removed or not based on Ensembl annotations
-                    gid = tags['Parent']
-                    if 'source_gene' not in tags or tags['source_gene'].split('.')[0] not in mito: 
-                        gene_txcounts[gid] += 1
+                    gid = tags['gene_id']
+                    gene_txcounts[gid] += 1
     f.close()
+
+    out_gtf = open("{}.filt.gtf".format(options.output_prefix), 'w')
+    out_gene_drop = open("{}.rm.genes".format(options.output_prefix), 'w')
+    out_tx_drop = open("{}.rm.tx".format(options.output_prefix), 'w')
 
     # Now, do a second pass and only keep genes with at least one valid transcript.
     # Also only keep CDSs and exons whose parent is a valid transcript.
@@ -195,32 +218,56 @@ def main(args):
         tags = get_tags(dat)
         
         printLine = False
+
+        if tags['gene_id'] in gene2source and gene2source[tags['gene_id']] != 'nan':
+            tags['source_gene'] = gene2source[tags['gene_id']]
+        
         if dat[2] == 'gene':
             gid = tags['gene_id']
             if gid in gene_cand_name and gene_txcounts[gid] > 0:
                 # Pass
                 tags['gene_name'] = gene_cand_name[gid]
                 printLine = True
+            else:
+                name = gid
+                if gid in gene_cand_name:
+                    name = gene_cand_name[gid]
+                elif gid in gene2source:
+                    eg = gene2source[gid]
+                    if eg in g2n:
+                        name = g2n[eg]
+                source = ""
+                if 'source_gene' in tags and tags['source_gene'] != 'nan':
+                    source = tags['source_gene']
+                print("{}\t{}\t{}".format(gid, name, source), file=out_gene_drop)
+
         elif dat[2] == 'transcript':
             # Gene must pass AND transcript must pass
             gid = tags['gene_id']
             if gid in gene_cand_name and gene_txcounts[gid] > 0:
                 if tags['transcript_id'] not in tx_rm:
                     printLine = True
+                else:
+                    print(tags['transcript_id'], file=out_tx_drop)
         else:
             # Everything else is a child of transcript.
             gid = tags['gene_id']
             tid = tags['transcript_id']
             if gid in gene_cand_name and gene_txcounts[gid] > 0 and tid not in tx_rm:
                 printLine = True
+        
         if printLine:
             if dat[0] in contigs_rename:
                 dat[0] = contigs_rename[dat[0]]
             # Stick in gene name to use
             tags['gene_name'] = gene_cand_name[tags['gene_id']]
-            tags['Name'] = gene_cand_name[tags['gene_id']]
             dat[8] = join_tags(tags)
-            print("\t".join(dat))
+            print("\t".join(dat), file=out_gtf)
+
+    out_gtf.close()
+    out_gene_drop.close()
+    out_tx_drop.close()
+
 
 
 if __name__ == '__main__':
