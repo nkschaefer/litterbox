@@ -77,6 +77,15 @@ def main(args):
         else:
             line = line.rstrip()
         dat = line.split('\t')
+        
+        # Here, we are assuming that we're using the UCSC liftOver files to go from
+        # one UCSC genome assembly to another, but we're using an Ensembl annotation.
+        # That means we're likely to need to append "chr" to the beginning of 
+        # chromosome names.
+        if len(dat[0]) > 3 and dat[0:3] != "chr":
+            dat[0] = "chr" + dat[0]
+        if dat[0] == "chrM" or dat[0] == "chrMT":
+            continue
         tags = get_tags(dat)
         if 'gene_id' in tags:
             if tags['gene_id'] in gene2human:

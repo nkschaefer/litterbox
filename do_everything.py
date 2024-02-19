@@ -50,7 +50,8 @@ old and new version of the assembly, and the programs gtfToGenePred, liftOver, a
 databases. This shoud be lowercase first letter of species plus full lowercase genus, with no spaces. For example, \
 chimpanzee is ptroglodytes, and rhesus macaque is mmulatta. (required if -l set)", required=False)
     rescue_opts.add_argument("--old_ens_gtf", help="Ensembl annotation on an old assembly of the same species for which \
-the CAT annotation exists (required if -l set)", required=False)
+the CAT annotation exists (required if -l set). Can be gzipped, and should be the \"chr\" annotation (i.e. \
+the one that does not include alt haplotypes and unplaced scaffolds).", required=False)
     rescue_opts.add_argument("--chain", help="UCSC chain file mapping from old assembly of this species to the current \
 one (required if -l set)", required=False)
     rescue_opts.add_argument("--gtfToGenePred_path", help="Path to gtfToGenePred (OPTIONAL; default = in path)", required=False)
