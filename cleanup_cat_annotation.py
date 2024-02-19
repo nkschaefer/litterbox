@@ -195,8 +195,9 @@ def main(args):
                     gene_txcounts[gid] += 1
     f.close()
 
-    out_gtf = open("{}.filt.gtf".format(options.output_prefix), 'w')
+    out_gtf = open("{}.gtf".format(options.output_prefix), 'w')
     out_gene_drop = open("{}.rm.genes".format(options.output_prefix), 'w')
+    out_gene_drop_tx = open("{}.rm.genes.notx".format(options.output_prefix), 'w')
     out_tx_drop = open("{}.rm.tx".format(options.output_prefix), 'w')
 
     # Now, do a second pass and only keep genes with at least one valid transcript.
@@ -224,11 +225,14 @@ def main(args):
         
         if dat[2] == 'gene':
             gid = tags['gene_id']
+            rm_because_tx = False
             if gid in gene_cand_name and gene_txcounts[gid] > 0:
                 # Pass
                 tags['gene_name'] = gene_cand_name[gid]
                 printLine = True
             else:
+                if gid in gene_cand_name:
+                    rm_because_tx = True
                 name = gid
                 if gid in gene_cand_name:
                     name = gene_cand_name[gid]
@@ -240,6 +244,8 @@ def main(args):
                 if 'source_gene' in tags and tags['source_gene'] != 'nan':
                     source = tags['source_gene']
                 print("{}\t{}\t{}".format(gid, name, source), file=out_gene_drop)
+                if rm_because_tx:
+                    print("{}\t{}\t{}".format(gid, name, source), file=out_gene_drop_tx)
 
         elif dat[2] == 'transcript':
             # Gene must pass AND transcript must pass
@@ -266,6 +272,7 @@ def main(args):
 
     out_gtf.close()
     out_gene_drop.close()
+    out_gene_drop_tx.close()
     out_tx_drop.close()
 
 
