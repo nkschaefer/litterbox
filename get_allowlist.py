@@ -3,6 +3,7 @@ import sys
 import os
 import argparse
 import gzip
+from cleanup_cat_annotation import join_tags
 """
 Given the most recent GENCODE annotation GTF, finds all genes that would
 pass filter (according to 10X Genomics guidelines).
@@ -66,6 +67,7 @@ def main(args):
     out_tx = open('{}.tx'.format(options.output_prefix), 'w')
     out_gene_mito = open('{}.mito'.format(options.output_prefix), 'w')
     out_tx2gene = open('{}.tx2gene'.format(options.output_prefix), 'w')
+    out_mito_gtf = open('{}.mito.gtf'.format(options.output_prefix), 'w')
 
     for line in f:
         if f_gz:
@@ -118,6 +120,11 @@ def main(args):
                         if dat[2] == 'gene':
                             if dat[0] == options.mito:
                                 print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene_mito)
+                                # Print the actual annotation data to a file that can be lifted over
+                                # separately (i.e. using liftOff)
+                                tags['gene_name'] = name
+                                dat[8] = join_tags(tags)
+                                print("\t".join(dat), file=out_mito_gtf)
                             else:
                                 print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene)
                         else:
@@ -130,6 +137,7 @@ def main(args):
     out_tx.close()
     out_gene_mito.close()
     out_tx2gene.close()
+    out_mito_gtf.close()
 
 
 if __name__ == '__main__':
