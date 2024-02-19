@@ -111,8 +111,8 @@ def main(args):
     subprocess.call(cmd3)
     
     # Clean up
-    os.unlink('{}.mito'.format(options.output_prefix))
-    os.unlink('{}.mito.gtf'.format(options.output_prefix))
+    #os.unlink('{}.mito'.format(options.output_prefix))
+    #os.unlink('{}.mito.gtf'.format(options.output_prefix))
 
     if options.species_id is not None:
         # Attempt to rescue by lifting from an old Ensembl annotation
@@ -138,16 +138,17 @@ def main(args):
         print(" ".join(cmd5), file=sys.stderr)
         subprocess.call(cmd5)
         
-        os.unlink('{}.homology'.format(options.output_prefix))
+        #os.unlink('{}.homology'.format(options.output_prefix))
 
     # Clean up
+    """
     if os.path.isfile('{}.tx'.format(options.output_prefix)):
         os.unlink('{}.tx'.format(options.output_prefix))
     if os.path.isfile('{}.tx2gene'.format(options.output_prefix)):
         os.unlink('{}.tx2gene'.format(options.output_prefix))
     if os.path.isfile('{}.genes'.format(options.output_prefix)):
         os.unlink('{}.genes'.format(options.output_prefix))
-
+    """
     # Now put everything together into one annotation.
     
 

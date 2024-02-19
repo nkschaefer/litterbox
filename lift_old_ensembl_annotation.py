@@ -5,6 +5,7 @@ import argparse
 import gzip
 from cleanup_cat_annotation import get_tags, join_tags
 import subprocess
+import random
 """
 Given a list of genes that were removed from the CAT annotation because all transcripts
 were filtered out, a mapping of these (human) genes to Ensembl gene IDs for the species of
@@ -76,31 +77,38 @@ def main(args):
             line = line.decode().rstrip()
         else:
             line = line.rstrip()
+        if line[0] == "#":
+            continue
         dat = line.split('\t')
         
         # Here, we are assuming that we're using the UCSC liftOver files to go from
         # one UCSC genome assembly to another, but we're using an Ensembl annotation.
         # That means we're likely to need to append "chr" to the beginning of 
         # chromosome names.
-        if len(dat[0]) > 3 and dat[0:3] != "chr":
+        if len(dat[0]) < 4 or dat[0:3] != "chr":
             dat[0] = "chr" + dat[0]
         if dat[0] == "chrM" or dat[0] == "chrMT":
             continue
+        
+
         tags = get_tags(dat)
         if 'gene_id' in tags:
             if tags['gene_id'] in gene2human:
+                ensg = gene2human[tags['gene_id']]
                 tags['gene_id'] = gene2human[tags['gene_id']]
-                if tags['gene_id'] in ens2name:
-                    tags['gene_name'] = ens2name[tags['gene_id']]
+                if ensg in ens2name:
+                    tags['gene_name'] = ens2name[ensg]
+                else:
+                    tags['gene_name'] = ensg
                 if 'transcript_id' in tags:
-                    tx2gene[tags['transcript_id']] = tags['gene_id']
+                    tx2gene[tags['transcript_id']] = ensg
                 dat[8] = join_tags(tags)
                 print("\t".join(dat), file=outf)
     
     if options.gtf != '-':
         f.close()
     outf.close()
-
+    
     gtfToGenePred = 'gtfToGenePred'
     if options.gtfToGenePred_path is not None:
         if options.gtfToGenePred_path[-1] == '/':
@@ -129,12 +137,21 @@ def main(args):
     
     f = open('{}.new.gtf'.format(options.output_prefix), 'r')
     f_out = open('{}.rescued.gtf'.format(options.output_prefix), 'w')
+    
+    rand_tag = ''.join(random.choice('0123456789ABCDEF') for i in range(5))
+
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
+        # Mark source
+        dat[1] = 'liftOver_{}'.format(options.gtf.split('/')[-1])
         tags = get_tags(dat)
         if tags['gene_id'] in ens2name:
             tags['gene_name'] = ens2name[tags['gene_id']]
+        tags['source_gene'] = tags['gene_id']
+        # Make gene IDs unique. Probably not important, but could potentially have a collision - 
+        # we want to note that this gene is not the same thing as the source human gene
+        tags['gene_id'] += '-' + rand_tag
         dat[8] = join_tags(tags)
         print("\t".join(dat), file=f_out)
     f_out.close()

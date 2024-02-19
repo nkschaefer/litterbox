@@ -4,6 +4,7 @@ import os
 import argparse
 import gzip
 from cleanup_cat_annotation import join_tags
+import random
 """
 Given the most recent GENCODE annotation GTF, finds all genes that would
 pass filter (according to 10X Genomics guidelines).
@@ -69,6 +70,10 @@ def main(args):
     out_tx2gene = open('{}.tx2gene'.format(options.output_prefix), 'w')
     out_mito_gtf = open('{}.mito.gtf'.format(options.output_prefix), 'w')
 
+    # Generate a random string to append to mitochondrial gene IDs, so the gene IDs
+    # will be unique to the modified CAT annotation
+    rand_tag = ''.join(random.choice('0123456789ABCDEF') for i in range(5))
+    
     for line in f:
         if f_gz:
             line = line.decode().rstrip()
@@ -120,11 +125,18 @@ def main(args):
                         if dat[2] == 'gene':
                             if dat[0] == options.mito:
                                 print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene_mito)
+                                
                                 # Print the actual annotation data to a file that can be lifted over
                                 # separately (i.e. using liftOff)
                                 tags['gene_name'] = name
+                                
+                                # This is probably not necessary, but also make the gene ID unique to this
+                                # instead of keeping the Ensembl ID -- just in case there are ever any
+                                # ID collisions somehow
+                                tags['gene_id'] += '-' + rand_tag 
                                 dat[8] = join_tags(tags)
                                 print("\t".join(dat), file=out_mito_gtf)
+                            
                             else:
                                 print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene)
                         else:
