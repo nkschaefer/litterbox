@@ -46,13 +46,13 @@ Recommended other things, to rescue some of the genes that will otherwise get dr
 
 `litterbox` can also try to pull in records for dropped genes from an [Ensembl](https://www.ensembl.org) annotation. This is a last resort: if all transcripts that CAT used to place a gene get filtered out by their tags/biotypes in the latest Gencode annotation, all we can do is try to pull some of those genes back from a different annotation. There are two possibilities:
 
-#### Ensembl annotated the most recent assembly
+#### If Ensembl annotated the most recent assembly
 
 If there is an Ensembl annotation of the same organism on the same genome assembly version (you can check dates against those in the UCSC genome browser, or if still uncertain, compare sequence lengths in the .fai files), then you will need to download the GTF of the Ensembl annotation and the genome assembly the annotation used, in FASTA format. 
 
 You will also need to know the name of the organism of the CAT assembly as it exists in the Ensembl database. This should be lowercase first letter of species name + lowercase genus name, with no spaces. Example: hsapiens
 
-#### Ensembl only annotated an older assembly
+#### If Ensembl only annotated an older assembly
 
 If the most recent Ensembl annotation for the organism is on a different assembly version than the one that CAT annotated, then you will need to download that assembly (in GTF format), the UCSC [chain file](https://genome.ucsc.edu/goldenPath/help/chain.html) for lifting from that assembly version to the one used for CAT ([UCSC downloads](https://hgdownload2.soe.ucsc.edu/downloads.html)), and a FASTA file of the UCSC version of the same assembly as was used for CAT. 
 
