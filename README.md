@@ -39,7 +39,7 @@ The easiest thing to do is to use [conda](https://conda.io/projects/conda/en/lat
 * A recent [Gencode](https://www.gencodegenes.org/human/) (Human) annotation (GTF format)
 * The name of the mitochondrial sequence in the genome assembly the CAT annotation corresponds to (it's probably chrM; you can check by indexing the FASTA using `samtools faidx` and looking at the sequence names in the first column of the resulting `fai` file
 * The genome (FASTA format) the HAL annotation corresponds to. If you have a set of aligned genomes in [HAL](https://github.com/ComparativeGenomicsToolkit/hal) format, you can extract the genome you want with the HAL toolkit command `hal2fasta` followed by the name of the genome in the HAL file.
-* The genome (FASTA format) that Gencode corresponds to: this is [hg38](https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz
+* The genome (FASTA format) that Gencode corresponds to: this is [hg38](https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz)
 * a tab-separated file, mapping (in three columns) `HGNC ID` -> `Approved symbol` -> `Ensembl Gene ID`. You can generate an up-to-date one [here](https://www.genenames.org/download/custom/) or use the one included in the `data` directory (default).
 
 Recommended other things, to rescue some of the genes that will otherwise get dropped:
