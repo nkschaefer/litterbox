@@ -13,6 +13,7 @@ Clean up CAT (Comparative Annotation Toolkit) annotations
 ## Installation
 
 The easiest thing to do is to use [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install all the requirements using the included yml file:
+
 `conda env create --file litterbox.yml`
 
 ## Why
@@ -32,7 +33,7 @@ The easiest thing to do is to use [conda](https://conda.io/projects/conda/en/lat
 
 #### Get data
 
-`litterbox` needs the following things to work:
+`litterbox` needs the following things:
 
 * The CAT annotation you want to clean up (GFF3 format)
 * A recent [Gencode](https://www.gencodegenes.org/human/) (Human) annotation (GTF format)
