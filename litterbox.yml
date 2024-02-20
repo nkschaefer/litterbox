@@ -1,0 +1,18 @@
+name: litterbox
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - liftoff
+  - samtools
+  - ca-certificates
+  - openssl
+  - ucsc-gtftogenepred
+  - ucsc-genepredtogtf
+  - ucsc-liftover
+  - bioconductor-biomart
+  - pandas
+  - natsort
+  - r-dbplyr=2.3.4
+prefix: /Users/nathan/opt/miniconda3/envs/litterbox

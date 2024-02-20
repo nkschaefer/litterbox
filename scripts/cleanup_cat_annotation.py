@@ -21,26 +21,57 @@ After this, still need to add in mitochondrial annotations.
 """
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="__doc__")
-    parser.add_argument("--gtf", "-g", help="GTF to filter", required=True)
-    parser.add_argument("--allowlist_base", "-a", help="Output prefix from get_allowlist.py run", \
-        required=True)
-    parser.add_argument("--excl_contigs", "-ec", help="An optional list of contigs to remove \
-(should be a file)", required=False)
-    parser.add_argument("--rename_contigs", "-rc", help="A file mapping old -> new contig \
-names (tab separated, optional)", required=False)
-    parser.add_argument("--drop_denovo", "-d", action="store_true", help="Set this option \
-to remove all de novo predicted genes (not based on homology)")
-    parser.add_argument("--output_prefix", "-o", required=True, help="Prefix for output files")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--gtf", 
+        "-g", 
+        help="GTF to filter", 
+        required=True
+    )
+    parser.add_argument(
+        "--allowlist_base", 
+        "-a", 
+        help="Output prefix from get_allowlist.py run",
+        required=True
+    )
+    parser.add_argument(
+        "--excl_contigs",
+        "-ec", 
+        help="An optional list of contigs to remove (should be a file)", 
+        required=False
+    )
+    parser.add_argument(
+        "--rename_contigs", 
+        "-rc", 
+        help="A file mapping old -> new contig names (tab separated, optional)", 
+        required=False
+    )
+    parser.add_argument(
+        "--drop_denovo", 
+        "-d", 
+        action="store_true", 
+        help="Set this option to remove all de novo predicted genes (not based \
+on homology)"
+    )
+    parser.add_argument(
+        "--output_prefix", 
+        "-o", 
+        required=True, 
+        help="Prefix for output files"
+    )
     return parser.parse_args()
 
 def get_tags(dat):
     tags = {}
-    for elt in dat[8].strip().rstrip(';').split(';'):
-        elt = elt.strip()
-        k, v = elt.split(' ')
-        v = v.strip('"')
-        tags[k] = v
+    try:
+        for elt in dat[8].strip().rstrip(';').split(';'):
+            elt = elt.strip()
+            k, v = elt.split(' ')
+            v = v.strip('"')
+            tags[k] = v
+    except e:
+        print("ERROR: input likely not GTF format.", file=sys.stderr)
+        exit(1)
     return tags
 
 def join_tags(tags):
@@ -147,7 +178,8 @@ def main(args):
                     if 'gene_name' in tags:
                         gene_cand_name[tags['gene_id']] = tags['gene_name']
                     elif 'source_gene_common_name' in tags:
-                        gene_cand_name[tags['gene_id']] = tags['source_gene_common_name'].split('.')[0]
+                        gene_cand_name[tags['gene_id']] = \
+                            tags['source_gene_common_name'].split('.')[0]
                     else:
                         gene_cand_name[tags['gene_id']] = tags['gene_id']
 
@@ -195,7 +227,7 @@ def main(args):
                     gene_txcounts[gid] += 1
     f.close()
 
-    out_gtf = open("{}.gtf".format(options.output_prefix), 'w')
+    out_gtf = open("{}.main.gtf".format(options.output_prefix), 'w')
     out_gene_drop = open("{}.rm.genes".format(options.output_prefix), 'w')
     out_gene_drop_tx = open("{}.rm.genes.notx".format(options.output_prefix), 'w')
     out_tx_drop = open("{}.rm.tx".format(options.output_prefix), 'w')

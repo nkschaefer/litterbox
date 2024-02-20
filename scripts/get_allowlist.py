@@ -16,14 +16,33 @@ Finally, can print a list of all genes on the mitochondrial genome, so they
 can be excluded from the CAT annotation.
 """
 def parse_args():
-    parser = argparse.ArgumentParser(description='__doc__')
-    parser.add_argument("--gtf", "-g", \
-        help="Latest GENCODE gtf (can be gzipped)", required=True)
-    parser.add_argument("--hgnc_ens", "-he", help="File with 3 (tab separated) columns: \
-HGNC ID, HGNC approved symbol, Ensembl ID (or blank if missing)", required=True)
-    parser.add_argument("--output_prefix", "-o", help="Prefix for output files. Will write a list of allowed \
-gene IDs, allowed transcript IDs, and allowed gene and transcript IDs for mitochondrion.", required=True)
-    parser.add_argument("--mito", help="Name of mitochondrial sequence. Default = chrM", default="chrM")
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--gtf", 
+        "-g",
+        help="Latest GENCODE gtf (can be gzipped)", 
+        required=True
+    )
+    parser.add_argument(
+        "--hgnc_ens", 
+        "-he", 
+        help="File with 3 (tab separated) columns: HGNC ID, HGNC approved \
+symbol, Ensembl ID (or blank if missing)", 
+        required=True
+    )
+    parser.add_argument(
+        "--output_prefix", 
+        "-o", 
+        help="Prefix for output files. Will write a list of allowed gene \
+IDs, allowed transcript IDs, and allowed gene and transcript IDs for \
+mitochondrion.", 
+        required=True
+    )
+    parser.add_argument(
+        "--mito", 
+        help="Name of mitochondrial sequence. Default = chrM", 
+        default="chrM"
+    )
     return parser.parse_args()
 
 def main(args):
@@ -127,12 +146,12 @@ def main(args):
                                 print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene_mito)
                                 
                                 # Print the actual annotation data to a file that can be lifted over
-                                # separately (i.e. using liftOff)
+                                # separately (i.e. using liftoff)
                                 tags['gene_name'] = name
                                 
                                 # This is probably not necessary, but also make the gene ID unique to this
                                 # instead of keeping the Ensembl ID -- just in case there are ever any
-                                # ID collisions somehow
+                                # ID collisions
                                 tags['gene_id'] += '-' + rand_tag 
                                 dat[8] = join_tags(tags)
                                 print("\t".join(dat), file=out_mito_gtf)

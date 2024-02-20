@@ -10,15 +10,55 @@ mitochondrial annotations onto the genome of the other species.
 """
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--cat_fasta", help="(bgzipped or not) FASTA file for species with CAT annotation", required=True)
-    parser.add_argument("--hg38_fasta", help="(bgzipped or not) FASTA file for hg38", required=True)
-    parser.add_argument("--liftoff_path", help="Path to liftOff program (OPTIONAL; default = in path)", required=False)
-    parser.add_argument("--samtools_path", help="Path to samtools program (OPTIONAL; default = in path)", required=False)
-    parser.add_argument("--minimap2_path", help="Path to minimap2 program (OPTIONAL; default = in path)", required=False)
-    parser.add_argument("--allowlist_base", '-a', help="Output prefix used for get_allowlist.py", required=True)
-    parser.add_argument("--hg38_mito", help="Name of mitochondrion in hg38", required=False, default="chrM")
-    parser.add_argument("--cat_mito", help="Name of mitochondrion in CAT", required=False, default=None)
-    parser.add_argument("--output_prefix", "-o", help="Prefix for output files to create", required=True)
+    parser.add_argument(
+        "--cat_fasta", 
+        help="(bgzipped or not) FASTA file for species with CAT annotation", 
+        required=True
+    )
+    parser.add_argument(
+        "--hg38_fasta",
+        help="(bgzipped or not) FASTA file for hg38",
+        required=True
+    )
+    parser.add_argument(
+        "--liftoff_path", 
+        help="Path to liftOff program (OPTIONAL; default = in path)",
+        required=False
+    )
+    parser.add_argument(
+        "--samtools_path",
+        help="Path to samtools program (OPTIONAL; default = in path)",
+        required=False
+    )
+    parser.add_argument(
+        "--minimap2_path",
+        help="Path to minimap2 program (OPTIONAL; default = in path)",
+        required=False
+    )
+    parser.add_argument(
+        "--allowlist_base", 
+        '-a', 
+        help="Output prefix used for get_allowlist.py", 
+        required=True
+    )
+    parser.add_argument(
+        "--hg38_mito", 
+        help="Name of mitochondrion in hg38", 
+        required=False, 
+        default="chrM"
+    )
+    parser.add_argument(
+        "--cat_mito", 
+        help="Name of mitochondrion in CAT", 
+        required=False, 
+        default=None
+    )
+    parser.add_argument(
+        "--output_prefix", 
+        "-o", 
+        help="Prefix for output files to create", 
+        required=True
+    )
 
     return parser.parse_args()
 
@@ -67,11 +107,13 @@ def main(args):
         candidates = ['chrM', 'M', 'MT', 'chrMT']
         for cand in candidates:
             if cand in seqs:
-                print("Using {} as mitochondrial seq".format(cand), file=sys.stderr)
+                print("Using {} as mitochondrial seq".format(cand), \
+                    file=sys.stderr)
                 cat_mito = cand
                 break
         if cat_mito is None:
-            print("ERROR: could not guess mitochondrial sequence name in {}".format(options.cat_fasta), file=sys.stderr)
+            print("ERROR: could not guess mitochondrial sequence name in {}".\
+                format(options.cat_fasta), file=sys.stderr)
             print("Please provide manually.", file=sys.stderr)
             exit(1)
     else:
@@ -79,22 +121,37 @@ def main(args):
 
     # Get mitochondrial genomes
     f = open('{}.mito.gencode.fa'.format(options.output_prefix), 'w')
-    p = subprocess.Popen([samtools, 'faidx', options.hg38_fasta, options.hg38_mito], stdout=f)
+    p = subprocess.Popen([
+        samtools, 
+        'faidx', 
+        options.hg38_fasta, 
+        options.hg38_mito
+    ], stdout=f)
     out, err = p.communicate()
     f.close()
     
     f = open('{}.mito.cat.fa'.format(options.output_prefix), 'w')
-    p = subprocess.Popen([samtools, 'faidx', options.cat_fasta, cat_mito], stdout=f)
+    p = subprocess.Popen([
+        samtools, 
+        'faidx', 
+        options.cat_fasta, 
+        cat_mito], 
+    stdout=f)
     out, err = p.communicate()
     f.close()
 
     # Run liftOff
-    cmd = [liftoff, '-g', '{}.mito.gtf'.format(options.allowlist_base), '-o', \
-        '{}.mito.liftoff.gtf'.format(options.output_prefix), '-u', \
-        '{}.mito.liftoff.unplaced'.format(options.output_prefix)]
+    cmd = [
+        liftoff, 
+        '-g', '{}.mito.gtf'.format(options.allowlist_base), 
+        '-o', '{}.mito.liftoff.gtf'.format(options.output_prefix),
+        '-u', '{}.mito.unmapped'.format(options.output_prefix
+    )]
+    
     if mm2 is not None:
         cmd.append('-m')
         cmd.append(mm2)
+    
     cmd.append('{}.mito.cat.fa'.format(options.output_prefix))
     cmd.append('{}.mito.gencode.fa'.format(options.output_prefix))
     subprocess.call(cmd)

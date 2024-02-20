@@ -20,6 +20,9 @@ gfile <- gfile[which(gfile$V3 != ""),]
 
 genelist <- unique(gfile$V3)
 
+#library(httr)
+#setconfig(config(sslverifypeer = 0L))
+
 suppressPackageStartupMessages(library(biomaRt))
 
 human <- useEnsembl('genes', 'hsapiens_gene_ensembl')

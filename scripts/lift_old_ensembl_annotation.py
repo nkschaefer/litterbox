@@ -17,20 +17,55 @@ present in the same directory where this is run.
 """
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--gtf", "-g", help="Ensembl annotation on an older assembly of the \
-target (non-human) species. Can be gzipped.", required=True)
-    parser.add_argument("--genelist", "-G", help="List of genes from get_homologous_genelist.R. \
-These should be human<tab>otherspecies Ensembl IDs for genes that were discarded from the \
-CAT annotation for having all unsuitable transcripts.", required=True)
-    parser.add_argument("--output_prefix", "-o", required=True)
-    parser.add_argument("--chain", "-c", help="Chain file for liftOver", required=True)
-    parser.add_argument("--hgnc_ens", "-he", help="File with 3 (tab separated) columns: \
-HGNC ID, HGNC approved symbol, Ensembl ID (or blank if missing)", required=True)
-    parser.add_argument("--gtfToGenePred_path", help="Path to gtfToGenePred (OPTIONAL; default = in path)", \
-        required=False)
-    parser.add_argument("--liftOver_path", help="Path to liftOver (OPTIONAL; default = in path)", required=False)
-    parser.add_argument("--genePredToGtf_path", help="Path to genePredToGtf (OPTIONAL; default = in path)", \
-        required=False)
+    parser.add_argument(
+        "--gtf", 
+        "-g", 
+        help="Ensembl annotation on an older assembly of the target \
+(non-human) species. Can be gzipped.", 
+        required=True
+    )
+    parser.add_argument(
+        "--genelist", 
+        "-G", 
+        help="List of genes from get_homologous_genelist.R. These \
+should be human<tab>otherspecies Ensembl IDs for genes that were \
+discarded from the CAT annotation for having all unsuitable \
+transcripts.", 
+        required=True
+    )
+    parser.add_argument(
+        "--output_prefix", 
+        "-o", 
+        required=True
+    )
+    parser.add_argument(
+        "--chain", 
+        "-c", 
+        help="Chain file for liftOver", 
+        required=True
+    )
+    parser.add_argument(
+        "--hgnc_ens", 
+        "-he", 
+        help="File with 3 (tab separated) columns: HGNC ID, HGNC \
+approved symbol, Ensembl ID (or blank if missing)", 
+        required=True
+    )
+    parser.add_argument(
+        "--gtfToGenePred_path", 
+        help="Path to gtfToGenePred (OPTIONAL; default = in path)",
+        required=False
+    )
+    parser.add_argument(
+        "--liftOver_path", 
+        help="Path to liftOver (OPTIONAL; default = in path)", 
+        required=False
+    )
+    parser.add_argument(
+        "--genePredToGtf_path",
+        help="Path to genePredToGtf (OPTIONAL; default = in path)",
+        required=False
+    )
     return parser.parse_args()
 
 def main(args):
@@ -71,13 +106,13 @@ def main(args):
     else:
         f = open(options.gtf, 'r')
     for line in f:
-        if line[0] == '#':
-            continue
+        
         if is_gz:
             line = line.decode().rstrip()
         else:
             line = line.rstrip()
-        if line[0] == "#":
+        
+        if line[0] == '#':
             continue
         dat = line.split('\t')
         
@@ -90,7 +125,6 @@ def main(args):
         if dat[0] == "chrM" or dat[0] == "chrMT":
             continue
         
-
         tags = get_tags(dat)
         if 'gene_id' in tags:
             if tags['gene_id'] in gene2human:
@@ -128,16 +162,32 @@ def main(args):
         else:
             genePredToGtf = options.genePredToGtf_path + '/genePredToGtf'
 
-    subprocess.call([gtfToGenePred, '-genePredExt', '{}.old.gtf'.format(options.output_prefix), \
-        '{}.old.gp'.format(options.output_prefix)])
-    subprocess.call([liftOver, '-genePred', '{}.old.gp'.format(options.output_prefix), \
-        options.chain, '{}.new.gp'.format(options.output_prefix), '{}.unmapped'.format(options.output_prefix)])
-    subprocess.call([genePredToGtf, '-utr', 'file', '{}.new.gp'.format(options.output_prefix), \
-        '{}.new.gtf'.format(options.output_prefix)])
+    subprocess.call([
+        gtfToGenePred, 
+        '-genePredExt', 
+        '{}.old.gtf'.format(options.output_prefix),
+        '{}.old.gp'.format(options.output_prefix)
+    ])
+    subprocess.call([
+        liftOver, 
+        '-genePred', 
+        '{}.old.gp'.format(options.output_prefix), 
+        options.chain, 
+        '{}.new.gp'.format(options.output_prefix), 
+        '{}.rescue.unmapped'.format(options.output_prefix)
+    ])
+    subprocess.call([
+        genePredToGtf, 
+        '-utr', 
+        'file', 
+        '{}.new.gp'.format(options.output_prefix),
+        '{}.new.gtf'.format(options.output_prefix)
+    ])
     
     f = open('{}.new.gtf'.format(options.output_prefix), 'r')
     f_out = open('{}.rescued.gtf'.format(options.output_prefix), 'w')
-    
+    f_out_list = open('{}.rescued.gid'.format(options.output_prefix), 'w')
+
     rand_tag = ''.join(random.choice('0123456789ABCDEF') for i in range(5))
 
     for line in f:
@@ -149,12 +199,14 @@ def main(args):
         if tags['gene_id'] in ens2name:
             tags['gene_name'] = ens2name[tags['gene_id']]
         tags['source_gene'] = tags['gene_id']
+        print(tags['gene_id'], file=f_out_list)
         # Make gene IDs unique. Probably not important, but could potentially have a collision - 
         # we want to note that this gene is not the same thing as the source human gene
         tags['gene_id'] += '-' + rand_tag
         dat[8] = join_tags(tags)
         print("\t".join(dat), file=f_out)
     f_out.close()
+    f_out_list.close()
     f.close()
     
     # Clean up
