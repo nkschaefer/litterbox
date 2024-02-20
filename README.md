@@ -4,10 +4,15 @@ Clean up CAT (Comparative Annotation Toolkit) annotations
 ## Requirements
 
 [samtools](https://github.com/samtools/samtools)
+
 gtfToGenePred, genePredToGtf, and liftOver from [UCSC Kent utils](https://hgdownload.soe.ucsc.edu/admin/exe/)
+
 [biomaRt](https://bioconductor.org/packages/release/bioc/html/biomaRt.html)
+
 [pandas](https://pandas.pydata.org/)
+
 [natsort](https://pypi.org/project/natsort/)
+
 [liftoff](https://github.com/agshumate/Liftoff)
 
 ## Installation
