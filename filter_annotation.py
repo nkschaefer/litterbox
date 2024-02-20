@@ -21,8 +21,8 @@ def parse_args():
         "--hgnc_ens",
         "-he", 
         help="File with 3 (tab separated) columns: HGNC ID, HGNC approved symbol, \
-Ensembl ID (or blank if missing). Required.", 
-        required=True
+Ensembl ID (or blank if missing). OPTIONAL; default = data/hgncid_name_ens.txt.", 
+        required=False,
     )
     parser.add_argument(
         "--output_prefix", 
@@ -47,8 +47,8 @@ and transcripts in the filtered list, and to use the HGNC-preferred names.",
 
     # cleanup_cat_annotation.py
     parser.add_argument(
-        "--cat_gtf", 
-        help="CAT annotation to filter (GTF format). Can be gzipped.", 
+        "--cat_gff3", 
+        help="CAT annotation to filter (GFF3 format). Can be gzipped.", 
         required=True
     )
     parser.add_argument(
@@ -108,15 +108,16 @@ based on homology)"
     # Arguments for rescuing genes from an old Ensembl annotation (optional)
     rescue_opts = parser.add_argument_group()
     rescue_opts.add_argument(
-        "--lift_old_annotation",
-        '-l', 
+        "--scavenge_ensembl_annotation", 
         help="If genes are eliminated from the CAT annotation because all \
 their transcripts have been eliminated, but the genes themselves pass filter,\
-it may be possible to rescue annotations for those genes by lifting over an \
-Ensembl annotation from a previous assembly of that species to the current \
-assembly. This requires an Ensembl annotation for the species, a UCSC chain \
-file mapping between the old and new version of the assembly, and the programs \
-gtfToGenePred, liftOver, and genePredToGtf.", 
+it may be possible to rescue annotations for those genes by pulling them from \
+an Ensembl annotation on the same assembly, or lifting over an Ensembl \
+annotation from a previous assembly of that species to the current assembly. \
+This requires an Ensembl annotation for the species, and if the assemblies \
+are different then it also requires  a UCSC chain file mapping between the \
+old and new version of the assembly, and the programs gtfToGenePred, liftOver, \
+and genePredToGtf.", 
         required=False, 
         action="store_true"
     )
@@ -137,9 +138,26 @@ the CAT annotation exists (required if -l set). Can be gzipped, and should be th
         required=False
     )
     rescue_opts.add_argument(
+        "--ensembl_fasta",
+        help="FASTA file for Ensembl genome, so we can alter sequence names as \
+necessary. Required if --scavenge_ensembl_annotation and the Ensembl assembly is \
+the same version as the one used for CAT (i.e. you are not providing a --chain file)",
+        required=False
+    )
+    rescue_opts.add_argument(
+        "--ucsc_fasta",
+        help="FASTA file for UCSC version of the genome the CAT annotation corresponds \
+to. The HAL-aligned genomes the CAT annotation used often have renamed chromosomes, \
+and this will ensure that sequence names come out matching the CAT annotation. Required \
+only if the Ensembl annotation is on a different assembly and you are lifting over to \
+the assembly CAT used (i.e. you are providing a --chain file)",
+        required=False
+    )
+    rescue_opts.add_argument(
         "--chain", 
         help="UCSC chain file mapping from old assembly of this species to the current \
-one (required if -l set)",
+one (required if --scavenge_ensembl_annotation and Ensembl assembly is different version \
+than the one used for CAT)",
         required=False
     )
     rescue_opts.add_argument(
@@ -159,7 +177,7 @@ one (required if -l set)",
     )
     
     parsed = parser.parse_args()
-    if parsed.lift_old_annotation:
+    if parsed.scavenge_ensembl_annotation:
         if parsed.species_id is None:
             print(
                 "ERROR: --species_id is required if lifting an old annotation", 
@@ -174,21 +192,39 @@ one (required if -l set)",
             exit(1)
         if parsed.chain is None:
             print(
-                "ERROR: --chain is required if lifting an old annotation",
+                "WARNING: without chain file (--chain), the Ensembl annotation \
+{} MUST be on the same genome assembly as the CAT annotation.".format(parsed.old_ens_gtf),
                 file=sys.stderr
             )
-            exit(1)
+        if parsed.chain is None and parsed.ensembl_fasta is None:
+            print(
+                "ERROR: you must provide an --ensembl_fasta genome if scavenging \
+an annotation on the same assembly", file=sys.stderr
+            )
+        if parsed.chain is not None and parsed.ucsc_fasta is None:
+            print(
+                "ERROR: you must provide a --ucsc_fasta genome if scavenging \
+an Ensembl annotation on a different assembly, then lifting over to a UCSC versioned \
+assembly",
+                file=sys.stderr
+            )
     return parser.parse_args()
 
 def main(args):
     options = parse_args()
     curdir = os.path.dirname(os.path.realpath(__file__))
     
+    # If the user didn't specify a HGNC ID -> Approved symbol -> Ensembl ID
+    # mapping file, use the one packaged here
+    hgnc_ens = options.hgnc_ens
+    if hgnc_ens is None:
+        hgnc_ens = '{}/data/hgncid_name_ens.txt'.format(curdir)
+
     # Get list of allowed genes
     cmd1 = [
         '{}/scripts/get_allowlist.py'.format(curdir),
         '--gtf', options.gencode, 
-        '-he', options.hgnc_ens,
+        '-he', hgnc_ens,
         '-o', options.output_prefix, 
         '--mito', options.mito_name_hg38
         ]
@@ -224,7 +260,7 @@ def main(args):
     # Filter the CAT annotation and remove mitochondrial genes
     cmd2 = [
         '{}/scripts/cleanup_cat_annotation.py'.format(curdir), 
-        '--gtf', options.cat_gtf, 
+        '--gff3', options.cat_gff3, 
         '-a', options.output_prefix, 
         '-o', '{}'.format(options.output_prefix)
     ]
@@ -264,7 +300,33 @@ def main(args):
     os.unlink('{}.mito'.format(options.output_prefix))
     os.unlink('{}.mito.gtf'.format(options.output_prefix))
 
-    if options.lift_old_annotation:
+    if options.scavenge_ensembl_annotation:
+        
+        if os.path.isfile('{}/data/{}_ids.txt'.format(curdir, options.species_id)):
+            # It works
+            pass
+        else:
+            # Check that the user has given a valid name key for biomaRt
+            p = subprocess.Popen([
+                '{}/scripts/get_ensembl_names.R'.format(curdir)
+            ], stdout=subprocess.PIPE)
+            out, err = p.communicate()
+            found_id = False
+            for line in out.decode().split('\n'):
+                dat = line.split('\t')
+                if dat[0] == options.species_id:
+                    found_id = True
+                    break
+            if not found_id:
+                print("ERROR: species id {} not found in Ensembl.".\
+                    format(options.species_id), file=sys.stderr)
+                print("To see a list of eligible IDs, please run \
+{}/scripts/get_ensembl_names.R.".format(curdir), file=sys.stderr)
+                print("NOTE: it's also possible that a curl query timed \
+out, since that seems to happen a lot with Ensembl web servers. Check \
+output for error messages and run again if that's the case.", file=sys.stderr)
+                exit(1)
+
         # Attempt to rescue by lifting from an old Ensembl annotation
         cmd4 = [
             '{}/scripts/get_homologous_genelist.R'.format(curdir), 
@@ -284,58 +346,123 @@ def main(args):
             n_hom_lines += 1
         f.close()
         if n_hom_lines == 0:
-            print("ERROR: no gene mappings found. {} is probably misspelled.".\
+            print("WARNING: no gene mappings found. There are no genes in \
+Ensembl homologous to the ones that were eliminated.".\
                 format(options.species_id), file=sys.stderr)
-            exit(1)
-        cmd5 = [
-            '{}/scripts/lift_old_ensembl_annotation.py'.format(curdir), 
-            '-G', '{}.homology'.format(options.output_prefix),
-            '-g', options.old_ens_gtf, 
-            '-c', options.chain, 
-            '--hgnc_ens', options.hgnc_ens, 
-            '-o', options.output_prefix
-        ]
-        if options.gtfToGenePred_path is not None:
-            cmd5.append("--gtfToGenePred_path")
-            cmd5.append(options.gtfToGenePred_path)
-        if options.liftOver_path is not None:
-            cmd5.append("--liftOver_path")
-            cmd5.append(options.liftOver_path)
-        if options.genePredToGtf_path is not None:
-            cmd5.append("--genePredToGtf_path")
-            cmd5.append(options.genePredToGtf_path)
+        else:    
+            if options.chain is None:
+                # Same genome assembly
+                
+                # Get a file mapping chromosome names between assemblies
+                if not os.path.isfile('{}.fai'.format(options.ensembl_fasta)):
+                    print("Indexing {}...".format(options.ensembl_fasta), file=sys.stderr)
+                    subprocess.call(['samtools', 'faidx', options.ensembl_fasta])
+                if not os.path.isfile('{}.fai'.format(options.cat_fasta)):
+                    print("Indexing {}...".format(options.cat_fasta), file=sys.stderr)
+                    subprocess.call(['samtools', 'faidx', options.cat_fasta])
+                
+                outf = open('{}.ensmap'.format(options.output_prefix), 'w')
 
-        print(" ".join(cmd5), file=sys.stderr)
-        subprocess.call(cmd5)
-        
-        os.unlink('{}.homology'.format(options.output_prefix))
-        
-        # Alter removed gene list
-        gidrescue = set([])
-        f = open('{}.rescued.gid'.format(options.output_prefix), 'r')
-        for line in f:
-            line = line.rstrip()
-            if line != "":
-                gidrescue.add(line)
-        f.close()
-        os.unlink('{}.rescued.gid'.format(options.output_prefix))
+                cmd5 = [
+                    '{}/scripts/map_between_assemblies.py'.format(curdir),
+                    '{}.fai'.format(options.ensembl_fasta),
+                    '{}.fai'.format(options.cat_fasta)
+                ]
 
-        gidrm = []
-        f = open('{}.rm.genes'.format(options.output_prefix), 'r')
-        for line in f:
-            line = line.rstrip()
-            dat = line.split('\t')
-            if len(dat) >= 3 and dat[2] != "":
-                if dat[2] not in gidrescue:
-                    gidrm.append(line)
+                print(" ".join(cmd5), file=sys.stderr)
+                p = subprocess.Popen(cmd5, stdout=outf)
+                out, err = p.communicate()
+                outf.close()
+
+                cmd6 = [
+                    '{}/scripts/scavenge_old_ensembl_annotation.py'.format(curdir),
+                    '-G', '{}.homology'.format(options.output_prefix),
+                    '-g', options.old_ens_gtf,
+                    '--hgnc_ens', hgnc_ens,
+                    '--idmap', '{}.ensmap'.format(options.output_prefix),
+                    '-o', options.output_prefix
+                ]
+
+                print(" ".join(cmd6), file=sys.stderr)
+                subprocess.call(cmd6)
+                
+                os.unlink('{}.ensmap'.format(options.output_prefix))
+
             else:
-                gidrm.append(line)
-        f.close()
-        f = open('{}.rm.genes'.format(options.output_prefix), 'w')
-        for line in gidrm:
-            print(line, file=f)
-        f.close()
-        os.unlink('{}.rm.genes.notx'.format(options.output_prefix))
+                # Different genome assembly
+                
+                # Get a file mapping chromosome names between assemblies
+                if not os.path.isfile('{}.fai'.format(options.ucsc_fasta)):
+                    print("Indexing {}...".format(options.ucsc_fasta), file=sys.stderr)
+                    subprocess.call(['samtools', 'faidx', options.ucsc_fasta])
+                if not os.path.isfile('{}.fai'.format(options.cat_fasta)):
+                    print("Indexing {}...".format(options.cat_fasta), file=sys.stderr)
+                    subprocess.call(['samtools', 'faidx', options.cat_fasta])
+                
+                outf = open('{}.ucscmap'.format(options.output_prefix), 'w')
+
+                cmd5 = [
+                    '{}/scripts/map_between_assemblies.py'.format(curdir),
+                    '{}.fai'.format(options.ucsc_fasta),
+                    '{}.fai'.format(options.cat_fasta)
+                ]
+
+                print(" ".join(cmd5), file=sys.stderr)
+                p = subprocess.Popen(cmd5, stdout=outf)
+                out, err = p.communicate()
+                outf.close()
+
+                cmd6 = [
+                    '{}/scripts/lift_old_ensembl_annotation.py'.format(curdir), 
+                    '-G', '{}.homology'.format(options.output_prefix),
+                    '-g', options.old_ens_gtf, 
+                    '-c', options.chain, 
+                    '--hgnc_ens', hgnc_ens, 
+                    '--idmap', '{}.ucscmap'.format(options.output_prefix),
+                    '-o', options.output_prefix
+                ]
+                if options.gtfToGenePred_path is not None:
+                    cmd6.append("--gtfToGenePred_path")
+                    cmd6.append(options.gtfToGenePred_path)
+                if options.liftOver_path is not None:
+                    cmd6.append("--liftOver_path")
+                    cmd6.append(options.liftOver_path)
+                if options.genePredToGtf_path is not None:
+                    cmd6.append("--genePredToGtf_path")
+                    cmd6.append(options.genePredToGtf_path)
+
+                print(" ".join(cmd6), file=sys.stderr)
+                subprocess.call(cmd6)
+                
+                os.unlink('{}.ucscmap'.format(options.output_prefix))
+            
+            os.unlink('{}.homology'.format(options.output_prefix))
+
+            # Alter removed gene list
+            gidrescue = set([])
+            f = open('{}.rescued.gid'.format(options.output_prefix), 'r')
+            for line in f:
+                line = line.rstrip()
+                if line != "":
+                    gidrescue.add(line)
+            f.close()
+            os.unlink('{}.rescued.gid'.format(options.output_prefix))
+
+            gidrm = []
+            f = open('{}.rm.genes'.format(options.output_prefix), 'r')
+            for line in f:
+                line = line.rstrip()
+                dat = line.split('\t')
+                if len(dat) >= 3 and dat[2] != "":
+                    if dat[2] not in gidrescue:
+                        gidrm.append(line)
+                else:
+                    gidrm.append(line)
+            f.close()
+            f = open('{}.rm.genes'.format(options.output_prefix), 'w')
+            for line in gidrm:
+                print(line, file=f)
+            f.close()
 
     # Clean up
     if os.path.isfile('{}.tx'.format(options.output_prefix)):
@@ -346,6 +473,8 @@ def main(args):
         os.unlink('{}.genes'.format(options.output_prefix))
     if os.path.isfile('{}.rm.tx'.format(options.output_prefix)):
         os.unlink('{}.rm.tx'.format(options.output_prefix))
+    if os.path.isfile('{}.rm.genes.notx'.format(options.output_prefix)):
+        os.unlink('{}.rm.genes.notx'.format(options.output_prefix))
 
     # Now put everything together into one annotation.
     cmd6 = [
@@ -355,8 +484,9 @@ def main(args):
         "{}.mito.liftoff.gtf".format(options.output_prefix)
     ]
 
-    if options.lift_old_annotation:
-        cmd6.append("{}.rescued.gtf".format(options.output_prefix))
+    if options.scavenge_ensembl_annotation:
+        if os.path.isfile('{}.rescued.gtf'.format(options.output_prefix)):
+            cmd6.append("{}.rescued.gtf".format(options.output_prefix))
 
     print(" ".join(cmd6), file=sys.stderr)
     subprocess.call(cmd6)
@@ -364,7 +494,8 @@ def main(args):
     # Clean up
     os.unlink("{}.main.gtf".format(options.output_prefix))
     os.unlink("{}.mito.liftoff.gtf".format(options.output_prefix))
-    os.unlink("{}.rescued.gtf".format(options.output_prefix))
+    if os.path.isfile('{}.rescued.gtf'.format(options.output_prefix)):
+        os.unlink("{}.rescued.gtf".format(options.output_prefix))
 
 
 if __name__ == '__main__':

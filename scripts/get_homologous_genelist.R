@@ -7,6 +7,7 @@
 
 # Finds the homologous genes in the other species.
 
+
 args <- commandArgs(trailingOnly=TRUE)
 if (length(args) < 2){
     write("Please provide *.rm.genes.notx and species identifier", stderr())
@@ -19,6 +20,19 @@ gfile <- read.table(args[1], sep="\t")
 gfile <- gfile[which(gfile$V3 != ""),]
 
 genelist <- unique(gfile$V3)
+
+# Check to see if we already downloaded IDs.
+initial.options <- commandArgs(trailingOnly = FALSE)
+file.arg.name <- "--file="
+script.name <- sub(file.arg.name, "", initial.options[grep(file.arg.name, initial.options)])
+dir.root <- dirname(dirname(script.name))
+fn <- paste(dir.root, '/data/', args[2], '_ids.txt', sep='')
+if (file.exists(fn)){
+    human2other <- read.table(fn)
+    human2other <- human2other[which(human2other$V1 %in% genelist),]
+    write.table(human2other, sep="\t", quote=FALSE, row.names=FALSE, col.names=FALSE)
+    q()
+}
 
 #library(httr)
 #setconfig(config(sslverifypeer = 0L))

@@ -23,7 +23,7 @@ After this, still need to add in mitochondrial annotations.
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--gtf", 
+        "--gff3", 
         "-g", 
         help="GTF to filter", 
         required=True
@@ -61,6 +61,18 @@ on homology)"
     )
     return parser.parse_args()
 
+def get_tags_gff3(dat):
+    tags = {}
+    try:
+        for elt in dat[8].strip().rstrip(';').split(';'):
+            elt = elt.strip()
+            k, v = elt.split('=')
+            tags[k] = v
+    except:
+        print("ERROR: input likely not in GFF3 format", file=sys.stderr)
+        exit(1)
+    return tags
+
 def get_tags(dat):
     tags = {}
     try:
@@ -69,7 +81,7 @@ def get_tags(dat):
             k, v = elt.split(' ')
             v = v.strip('"')
             tags[k] = v
-    except e:
+    except:
         print("ERROR: input likely not GTF format.", file=sys.stderr)
         exit(1)
     return tags
@@ -145,11 +157,11 @@ def main(args):
     # Make two passes
     f = None
     f_gz = False
-    if options.gtf[-3:] == '.gz':
-        f = gzip.open(options.gtf, 'r')
+    if options.gff3[-3:] == '.gz':
+        f = gzip.open(options.gff3, 'r')
         f_gz = True
     else:
-        f = open(options.gtf, 'r')
+        f = open(options.gff3, 'r')
         f_gz = False
 
     for line in f:
@@ -162,7 +174,7 @@ def main(args):
             
             if dat[0] in contigs_excl:
                 continue
-            tags = get_tags(dat)            
+            tags = get_tags_gff3(dat)            
             if dat[2] == 'gene':
                 if 'source_gene' in tags and tags['source_gene'] != 'None':
                     # Look up ENS ID to see if it passes
@@ -235,20 +247,22 @@ def main(args):
     # Now, do a second pass and only keep genes with at least one valid transcript.
     # Also only keep CDSs and exons whose parent is a valid transcript.
     if f_gz:
-        f = gzip.open(options.gtf, 'r')
+        f = gzip.open(options.gff3, 'r')
     else:
-        f = open(options.gtf, 'r')
+        f = open(options.gff3, 'r')
     for line in f:
         if f_gz:
             line = line.decode().rstrip()
         else:
             line = line.rstrip()
-        dat = line.split('\t')
 
+        if line[0] == "#":
+            continue
+        dat = line.split('\t')
         if dat[0] in contigs_excl:
             continue
 
-        tags = get_tags(dat)
+        tags = get_tags_gff3(dat)
         
         printLine = False
 
@@ -287,7 +301,7 @@ def main(args):
                     printLine = True
                 else:
                     print(tags['transcript_id'], file=out_tx_drop)
-        else:
+        elif dat[2] != 'intron':
             # Everything else is a child of transcript.
             gid = tags['gene_id']
             tid = tags['transcript_id']

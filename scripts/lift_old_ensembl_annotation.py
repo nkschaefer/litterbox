@@ -10,10 +10,9 @@ import random
 Given a list of genes that were removed from the CAT annotation because all transcripts
 were filtered out, a mapping of these (human) genes to Ensembl gene IDs for the species of
 interest, an old Ensembl gene annotation for the species of interest, and a UCSC chain 
-file for mapping from the old genome assembly to the new, attempts to rescue these genes
+file for mapping from the old genome assembly to the new, attempts to rescue these genes 
 by lifting over their records from the old Ensembl annotation to the new genome assembly.
-Requires gtfToGenePred, liftOver, and genePredToGtf from the UCSC Kent utilities to be
-present in the same directory where this is run.
+Requires gtfToGenePred, liftOver, and genePredToGtf from the UCSC Kent utilities.
 """
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -49,6 +48,12 @@ transcripts.",
         "-he", 
         help="File with 3 (tab separated) columns: HGNC ID, HGNC \
 approved symbol, Ensembl ID (or blank if missing)", 
+        required=True
+    )
+    parser.add_argument(
+        "--idmap",
+        help="File mapping UCSC sequence ID to sequence IDs in the \
+HAL-aligned assembly version on which CAT was run",
         required=True
     )
     parser.add_argument(
@@ -184,6 +189,16 @@ def main(args):
         '{}.new.gtf'.format(options.output_prefix)
     ])
     
+    # Load ID mappings
+    id2id = {}
+    f = open(options.idmap, 'r')
+    for line in f:
+        line = line.rstrip()
+        if line != "":
+            dat = line.split('\t')
+            id2id[dat[0]] = dat[1]
+    f.close()
+
     f = open('{}.new.gtf'.format(options.output_prefix), 'r')
     f_out = open('{}.rescued.gtf'.format(options.output_prefix), 'w')
     f_out_list = open('{}.rescued.gid'.format(options.output_prefix), 'w')
@@ -193,6 +208,8 @@ def main(args):
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
+        # Convert UCSC seq ID to HAL-aligned assembly sequence ID
+        dat[0] = id2id[dat[0]]
         # Mark source
         dat[1] = 'liftOver_{}'.format(options.gtf.split('/')[-1])
         tags = get_tags(dat)
