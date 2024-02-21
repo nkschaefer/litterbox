@@ -29,6 +29,10 @@ The easiest thing to do is to use [conda](https://conda.io/projects/conda/en/lat
 * GFF3s are not necessarily sorted and formatted in the way expected by indexing programs (like `STAR genomeGenerate` and `cellranger mkref`)
 * When using tools like [scanpy](https://scanpy.readthedocs.io/en/stable/) or [Seurat](https://satijalab.org/seurat/), genes are usually keyed to their human-readable name, not their unique IDs. If you are using annotations from multiple species, [gene synonyms](https://www.genenames.org/tools/multi-symbol-checker/) might mean that genes are dropped when they don't have the same name for one or more species. 
 
+### Limitations
+
+The GTF file format often includes features marking 5' and 3' UTRs, but GFF3 does not. These scripts start with a CAT GFF3 file and output a GTF file, but this does not contain UTR annotations. If this turns out to be important later, it might be added in.
+
 ### How to fix it
 
 #### Get data
