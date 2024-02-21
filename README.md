@@ -66,6 +66,8 @@ You will also need to know the name of the organism of the CAT assembly as it ex
 
 Everything is set up so you can just run one program (in the main directory): `filter_annotation.py`. It has a lot of arguments that will show up if you run it with `--help` or `-h.` You must provide an output file name prefix, and the final annotation will be in `[output_prefix].gtf`. 
 
+If you installed and activated the `conda` environment `litterbox`, then you can ignore all of the arguments that provide paths to programs.
+
 You can optionally filter a human Gencode annotation (recommended: the version of Gencode that was used to create the CAT annotation) to contain the same genes, and the same gene names, as the final CAT annotation. This is a good idea to make sure that gene names match up and that genes that exist in both annotations, but left included in only one, don't drive up/down expression of other genes as a result of being left in or out. If you choose this option, the resulting annotation will be `[output_prefix].human.gtf`.
 
 ### What it's doing
