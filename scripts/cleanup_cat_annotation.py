@@ -67,6 +67,11 @@ def get_tags_gff3(dat):
         for elt in dat[8].strip().rstrip(';').split(';'):
             elt = elt.strip()
             k, v = elt.split('=')
+            if k == 'tag':
+                # Can have multiple values
+                if k not in tags:
+                    tags[k] = []
+                tags[k].append(v)
             tags[k] = v
     except:
         print("ERROR: input likely not in GFF3 format", file=sys.stderr)
@@ -80,7 +85,13 @@ def get_tags(dat):
             elt = elt.strip()
             k, v = elt.split(' ')
             v = v.strip('"')
-            tags[k] = v
+            if k == 'tag':
+                # Can have multiple values
+                if k not in tags:
+                    tags[k] = []
+                tags[k].append(v)
+            else:
+                tags[k] = v
     except:
         print("ERROR: input likely not GTF format.", file=sys.stderr)
         exit(1)
@@ -187,9 +198,9 @@ def main(args):
                 
                 else:
                     # Store name for gene and wait
-                    if 'gene_name' in tags:
+                    if 'gene_name' in tags and tags['gene_name'] != 'None':
                         gene_cand_name[tags['gene_id']] = tags['gene_name']
-                    elif 'source_gene_common_name' in tags:
+                    elif 'source_gene_common_name' in tags and tags['source_gene_common_name'] != 'None':
                         gene_cand_name[tags['gene_id']] = \
                             tags['source_gene_common_name'].split('.')[0]
                     else:

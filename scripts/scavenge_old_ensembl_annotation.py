@@ -6,6 +6,7 @@ import gzip
 from cleanup_cat_annotation import get_tags, join_tags
 import subprocess
 import random
+from collections import Counter
 """
 Given a list of genes that were removed from the CAT annotation because all transcripts
 were filtered out, a mapping of these (human) genes to Ensembl gene IDs for the species of
@@ -68,13 +69,22 @@ def main(args):
     f.close()
     
     gene2human = {}
+    human2gene = {}
+    humancounts = Counter
     f = open(options.genelist, 'r')
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
         gene2human[dat[1]] = dat[0]
+        human2gene[dat[0]] = dat[1]
+        humancounts[dat[0]] += 1
     f.close()
-    
+    # Remove human genes that map to more than 1 other species gene
+    for human in human2gene:
+        other = human2gene[human]
+        if humancounts[human] > 1:
+            del gene2human[other]
+
     tx2gene = {}
 
     outf = open("{}.rescued.gtf".format(options.output_prefix), 'w')

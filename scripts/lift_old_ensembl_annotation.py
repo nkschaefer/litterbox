@@ -6,6 +6,7 @@ import gzip
 from cleanup_cat_annotation import get_tags, join_tags
 import subprocess
 import random
+from collections import Counter
 """
 Given a list of genes that were removed from the CAT annotation because all transcripts
 were filtered out, a mapping of these (human) genes to Ensembl gene IDs for the species of
@@ -91,12 +92,23 @@ def main(args):
     f.close()
     
     gene2human = {}
+    human2gene = {}
+    human_counts = Counter()
     f = open(options.genelist, 'r')
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
         gene2human[dat[1]] = dat[0]
+        human2gene[dat[0]] = dat[1]
+        human_counts[dat[0]] += 1
     f.close()
+
+    # Toss out human genes that map to more than 1 gene in other
+    # species
+    for human in human2gene:
+        other = human2gene[human]
+        if human_counts[human] > 1:
+            del gene2human[other]
     
     tx2gene = {}
 
@@ -204,7 +216,25 @@ def main(args):
     f_out_list = open('{}.rescued.gid'.format(options.output_prefix), 'w')
 
     rand_tag = ''.join(random.choice('0123456789ABCDEF') for i in range(5))
-
+    
+    # Make two passes: first pass is to learn what gene IDs have a gene feature
+    # that made it through liftOver. Second is to actually print stuff
+    has_gene = set([])
+    has_tx = set([])
+    has_exon = set([])
+    for line in f:
+        line = line.rstrip()
+        dat = line.split('\t')
+        tags = get_tags(dat)
+        if dat[2] == 'gene':
+            has_gene.add(tags['gene_id'])
+        elif dat[2] == 'transcript':
+            has_tx.add(tags['gene_id'])
+        elif dat[2] == 'exon':
+            has_exon.add(tags['gene_id'])
+    f.close()
+    
+    f = open('{}.new.gtf'.format(options.output_prefix), 'r')
     for line in f:
         line = line.rstrip()
         dat = line.split('\t')
@@ -213,15 +243,19 @@ def main(args):
         # Mark source
         dat[1] = 'liftOver_{}'.format(options.gtf.split('/')[-1])
         tags = get_tags(dat)
-        if tags['gene_id'] in ens2name:
-            tags['gene_name'] = ens2name[tags['gene_id']]
-        tags['source_gene'] = tags['gene_id']
-        print(tags['gene_id'], file=f_out_list)
-        # Make gene IDs unique. Probably not important, but could potentially have a collision - 
-        # we want to note that this gene is not the same thing as the source human gene
-        tags['gene_id'] += '-' + rand_tag
-        dat[8] = join_tags(tags)
-        print("\t".join(dat), file=f_out)
+        # Make sure this gene has a gene entry plus at least one transcript
+        # and at least one exon.
+        if tags['gene_id'] in has_gene and tags['gene_id'] in has_tx and \
+            tags['gene_id'] in has_exon:
+            if tags['gene_id'] in ens2name:
+                tags['gene_name'] = ens2name[tags['gene_id']]
+            tags['source_gene'] = tags['gene_id']
+            print(tags['gene_id'], file=f_out_list)
+            # Make gene IDs unique. Probably not important, but could potentially have a collision - 
+            # we want to note that this gene is not the same thing as the source human gene
+            tags['gene_id'] += '-' + rand_tag
+            dat[8] = join_tags(tags)
+            print("\t".join(dat), file=f_out)
     f_out.close()
     f_out_list.close()
     f.close()
