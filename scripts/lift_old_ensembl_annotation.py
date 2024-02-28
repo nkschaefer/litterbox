@@ -107,7 +107,7 @@ def main(args):
     # species
     for human in human2gene:
         other = human2gene[human]
-        if human_counts[human] > 1:
+        if human in human_counts and human_counts[human] > 1 and other in gene2human:
             del gene2human[other]
     
     tx2gene = {}

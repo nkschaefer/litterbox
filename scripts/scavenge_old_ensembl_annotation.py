@@ -70,7 +70,7 @@ def main(args):
     
     gene2human = {}
     human2gene = {}
-    humancounts = Counter
+    humancounts = Counter()
     f = open(options.genelist, 'r')
     for line in f:
         line = line.rstrip()
@@ -82,7 +82,7 @@ def main(args):
     # Remove human genes that map to more than 1 other species gene
     for human in human2gene:
         other = human2gene[human]
-        if humancounts[human] > 1:
+        if humancounts[human] > 1 and other in gene2human:
             del gene2human[other]
 
     tx2gene = {}
