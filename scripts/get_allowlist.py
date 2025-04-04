@@ -93,6 +93,9 @@ def main(args):
     # will be unique to the modified CAT annotation
     rand_tag = ''.join(random.choice('0123456789ABCDEF') for i in range(5))
     
+    first = True
+    gff3 = False
+
     for line in f:
         if f_gz:
             line = line.decode().rstrip()
@@ -105,22 +108,42 @@ def main(args):
                 has_allowed_type = False
                 has_disallowed_tag = False
                 tags = {}
-                for elt in dat[8].strip().rstrip(';').split(';'):
-                    elt = elt.strip()
-                    k, v = elt.split(' ')
-                    v = v.strip('"')
-                    tags[k] = v
-                    if dat[2] == 'gene':
-                        if k == 'gene_type' and v in allow_biotype:
-                            has_allowed_type = True
-                        elif k == 'tag' and v in disallow_tag:
-                            has_disallowed_tag = True
-                    elif dat[2] == 'transcript':
-                        if k == 'transcript_type' and v in allow_biotype:
-                            has_allowed_type = True
-                        elif k == 'tag' and v in disallow_tag:
-                            has_disallowed_tag = True
                 
+                vals = dat[8]
+                if first:
+                    if '=' in vals:
+                        gff3 = True
+                    else:
+                        gff3 = False
+                    first = False
+                gid = None
+                gname = None
+                for elt in vals.split(';'):
+                    elt = elt.strip()
+                    k = None
+                    v = None
+                    if gff3:
+                        kv = elt.split('=')
+                        if len(kv) == 2:
+                            k, v = kv
+                    else:
+                        kv = elt.split()
+                        if len(kv) == 2:
+                            k, v = kv
+                            v = v.strip('"')
+                    if k is not None and v is not None:
+                        tags[k] = v
+                        if dat[2] == 'gene':
+                            if k == 'gene_type' and v in allow_biotype:
+                                has_allowed_type = True
+                            elif k == 'tag' and v in disallow_tag:
+                                has_disallowed_tag = True
+                        elif dat[2] == 'transcript':
+                            if k == 'transcript_type' and v in allow_biotype:
+                                has_allowed_type = True
+                            elif k == 'tag' and v in disallow_tag:
+                                has_disallowed_tag = True
+
                 if dat[2] == 'transcript':
                     print("{}\t{}".format(tags['transcript_id'].split('.')[0], \
                         tags['gene_id'].split('.')[0]), file=out_tx2gene)

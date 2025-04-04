@@ -15,4 +15,11 @@ dependencies:
   - pandas
   - natsort
   - r-dbplyr=2.3.4
-prefix: /Users/nathan/opt/miniconda3/envs/litterbox
+  - pandas
+  - numpy
+  - pyranges
+  - tqdm
+  - matplotlib
+  - nextflow
+  - minimap2=2.28
+  - python=3.11 

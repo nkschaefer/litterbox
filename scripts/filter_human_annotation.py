@@ -54,6 +54,14 @@ on the mitochondrial genome.",
     )
     return parser.parse_args()
 
+"""
+Check whether a file is gzipped.
+"""
+def file_is_gz(file):
+    with open(file, 'rb') as test:
+        return test.read(2) == b'\x1f\x8b'
+
+
 def main(args):
     options = parse_args()
     
@@ -106,9 +114,8 @@ def main(args):
     outf = open(options.output, 'w')
 
     f = None
-    is_gz = False
-    if options.gtf[-3:] == '.gz':
-        is_gz = True
+    is_gz = file_is_gz(options.gtf)
+    if is_gz:
         f = gzip.open(options.gtf, 'r')
     else:
         f = open(options.gtf, 'r')

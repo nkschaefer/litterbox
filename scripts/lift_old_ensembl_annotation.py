@@ -260,12 +260,6 @@ def main(args):
     f_out_list.close()
     f.close()
     
-    # Clean up
-    os.unlink('{}.old.gtf'.format(options.output_prefix))
-    os.unlink('{}.old.gp'.format(options.output_prefix))
-    os.unlink('{}.new.gp'.format(options.output_prefix))
-    os.unlink('{}.new.gtf'.format(options.output_prefix))
-
 
 if __name__ == '__main__':
     sys.exit(main(sys.argv))

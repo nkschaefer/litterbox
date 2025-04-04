@@ -103,6 +103,14 @@ def join_tags(tags):
         tagprint.append('{} "{}"'.format(k, tags[k]))
     return "; ".join(tagprint) + ";"
 
+"""
+Check whether a file is gzipped.
+"""
+def file_is_gz(file):
+    with open(file, 'rb') as test:
+        return test.read(2) == b'\x1f\x8b'
+
+
 def main(args):
     
     options = parse_args()
@@ -167,13 +175,11 @@ def main(args):
 
     # Make two passes
     f = None
-    f_gz = False
-    if options.gff3[-3:] == '.gz':
+    f_gz = file_is_gz(options.gff3)
+    if f_gz:
         f = gzip.open(options.gff3, 'r')
-        f_gz = True
     else:
         f = open(options.gff3, 'r')
-        f_gz = False
 
     for line in f:
         if f_gz:

@@ -154,15 +154,8 @@ def main(args):
     
     cmd.append('{}.mito.cat.fa'.format(options.output_prefix))
     cmd.append('{}.mito.gencode.fa'.format(options.output_prefix))
+    print(" ".join(cmd), file=sys.stderr)
     subprocess.call(cmd)
     
-    # Clean up
-    os.unlink('{}.mito.cat.fa'.format(options.output_prefix))
-    os.unlink('{}.mito.cat.fa.fai'.format(options.output_prefix))
-    os.unlink('{}.mito.cat.fa.mmi'.format(options.output_prefix))
-    os.unlink('{}.mito.gencode.fa'.format(options.output_prefix))
-    os.unlink('{}.mito.gencode.fa.fai'.format(options.output_prefix))
-    os.unlink('{}.mito.gtf_db'.format(options.output_prefix))
-
 if __name__ == '__main__':
     sys.exit(main(sys.argv))
