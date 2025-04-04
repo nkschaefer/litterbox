@@ -32,7 +32,7 @@ If working on a cluster, make sure you submit this as a job as appropriate.
 In the specified output directory, you will see `litterbox.gtf` (the filtered annotation for your species), `litterbox.genes_removed.txt` (the list of genes that were filtered out), and `synteny.pdf` (an annotation-based synteny map with human on X and your species on Y, showing the annotation before filtering). If you provided a human annotation to filter (e.g. the CellRanger default), `human.gtf` will contain the filtered records from this genome.
 
 
-
+## The long version
 
 ## Requirements
 
