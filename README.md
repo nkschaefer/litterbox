@@ -34,15 +34,6 @@ In the specified output directory, you will see `litterbox.gtf` (the filtered an
 
 ## The long version
 
-## Requirements
-
-* [samtools](https://github.com/samtools/samtools)
-* gtfToGenePred, genePredToGtf, and liftOver from [UCSC Kent utils](https://hgdownload.soe.ucsc.edu/admin/exe/)
-* [biomaRt](https://bioconductor.org/packages/release/bioc/html/biomaRt.html)
-* [pandas](https://pandas.pydata.org/)
-* [natsort](https://pypi.org/project/natsort/)
-* [liftoff](https://github.com/agshumate/Liftoff)
-
 ## Installation
 
 The easiest thing to do is to use [conda](https://conda.io/projects/conda/en/latest/user-guide/install/index.html) to install all the requirements using the included yml file:
