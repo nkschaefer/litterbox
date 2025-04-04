@@ -1,6 +1,39 @@
 # litterbox
 Clean up CAT (Comparative Annotation Toolkit) annotations
 
+## TL;DR
+Litterbox is a tool for cleaning up [CAT](https://github.com/ComparativeGenomicsToolkit/Comparative-Annotation-Toolkit) annotations for use in cross-species comparative RNA-seq analyses.
+
+Litterbox removes gene/transcript types expected to cause mapping problems (like readthrough transcripts), renames genes to use the current [HGNC](https://www.genenames.org/) standard, and throws away genes that do not fit along the likeliest synteny path with hg38.
+
+### Install
+Get [conda](https://github.com/conda-forge/miniforge) 
+
+Clone this repository
+
+```
+conda env create --file=litterbox.yml
+```
+
+### Run
+If using a cluster, create a `nextflow.config` file in your working directory and add [cluster-specific settings](https://www.nextflow.io/docs/latest/config.html)
+
+Copy the included `example.yml` to your working directory, rename it, and edit it to point to your files and preferences
+
+Run the pipeline:
+
+```
+nextflow [/path/to/litterbox/]litterbox.nf -params-file [your_params.yml]
+```
+
+If working on a cluster, make sure you submit this as a job as appropriate.
+
+### Results
+In the specified output directory, you will see `litterbox.gtf` (the filtered annotation for your species), `litterbox.genes_removed.txt` (the list of genes that were filtered out), and `synteny.pdf` (an annotation-based synteny map with human on X and your species on Y, showing the annotation before filtering). If you provided a human annotation to filter (e.g. the CellRanger default), `human.gtf` will contain the filtered records from this genome.
+
+
+
+
 ## Requirements
 
 * [samtools](https://github.com/samtools/samtools)
