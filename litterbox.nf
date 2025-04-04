@@ -45,7 +45,7 @@ process get_allowlist{
     path("gencode.tx2gene")
     
     script:
-    def chrM=params.mito_name_hg38
+    def chrM=params.hg38_mito
     """
     ${baseDir}/scripts/get_allowlist.py --gtf ${gencode} \
         -he ${hgnc_ens} -o gencode --mito ${chrM}
@@ -349,6 +349,7 @@ process cat_gtf{
     script:
     """
     cat ${gtf1} ${gtf2} > concat.gtf
+    exit 1
     """
 }
 
@@ -399,6 +400,9 @@ process svgenes{
         --species2 ${s2} \
         --fai1 ${fa1}.fai \
         --fai2 ${fa2}.fai \
+        --exclude_chr "chrUn|random|alt|qp|Scaffold" \
+        --mito1 ${params.hg38_mito} \
+        --mito2 ${params.cat_mito} \
         -o synteny1 \
         -1 ${gtf1} \
         -2 ${gtf2} \
@@ -438,6 +442,9 @@ process svgenes2{
         --species2 ${s2} \
         --fai1 ${fa1}.fai \
         --fai2 ${fa2}.fai \
+        --exclude_chr "chrUn|random|alt|qp|Scaffold" \
+        --mito1 ${params.hg38_mito} \
+        --mito2 ${params.cat_mito} \
         -o synteny \
         -1 ${gtf1} \
         -2 ${gtf2}
@@ -633,6 +640,8 @@ workflow{
             return [match[0], match[1], gtf ]
         }
         
+        gtf2.view()
+ 
         // Contents:
         // Species1 (human) GTF
         // Species2 (other) GTF
@@ -641,6 +650,8 @@ workflow{
         // list of BED segments for re-mapping removed species2 genes
         // list of GTF genes for re-mapping removed species2 genes
         svgenes_out = gtf1.combine(gtf2).combine(Channel.fromPath(params.hg38_fasta)).combine(Channel.fromPath(params.cat_fasta)) | svgenes
+        
+        svgenes_out.view()
         
         // Get all segments to re-map 
         remapped = svgenes_out.flatMap{ tup -> 

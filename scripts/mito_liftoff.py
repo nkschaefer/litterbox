@@ -145,8 +145,9 @@ def main(args):
         liftoff, 
         '-g', '{}.mito.gtf'.format(options.allowlist_base), 
         '-o', '{}.mito.liftoff.gtf'.format(options.output_prefix),
-        '-u', '{}.mito.unmapped'.format(options.output_prefix
-    )]
+        '-u', '{}.mito.unmapped'.format(options.output_prefix),
+        '-flank', '10'
+    ]
     
     if mm2 is not None:
         cmd.append('-m')

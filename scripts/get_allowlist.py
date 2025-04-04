@@ -104,88 +104,103 @@ def main(args):
         if line[0] != '#':
             dat = line.split('\t')
             
-            if dat[2] == 'gene' or dat[2] == 'transcript':
-                has_allowed_type = False
-                has_disallowed_tag = False
-                tags = {}
+            has_allowed_type = False
+            has_disallowed_tag = False
+            tags = {}
+            
+            vals = dat[8]
+            if first:
+                if '=' in vals:
+                    gff3 = True
+                else:
+                    gff3 = False
+                first = False
+            gid = None
+            gname = None
+            for elt in vals.split(';'):
+                elt = elt.strip()
+                k = None
+                v = None
+                if gff3:
+                    kv = elt.split('=')
+                    if len(kv) == 2:
+                        k, v = kv
+                else:
+                    kv = elt.split()
+                    if len(kv) == 2:
+                        k, v = kv
+                        v = v.strip('"')
+                if k is not None and v is not None:
+                    tags[k] = v
+                    if dat[2] == 'gene':
+                        if k == 'gene_type' and v in allow_biotype:
+                            has_allowed_type = True
+                        elif k == 'tag' and v in disallow_tag:
+                            has_disallowed_tag = True
+                    elif dat[2] == 'transcript':
+                        if k == 'transcript_type' and v in allow_biotype:
+                            has_allowed_type = True
+                        elif k == 'tag' and v in disallow_tag:
+                            has_disallowed_tag = True
                 
-                vals = dat[8]
-                if first:
-                    if '=' in vals:
-                        gff3 = True
-                    else:
-                        gff3 = False
-                    first = False
-                gid = None
-                gname = None
-                for elt in vals.split(';'):
-                    elt = elt.strip()
-                    k = None
-                    v = None
-                    if gff3:
-                        kv = elt.split('=')
-                        if len(kv) == 2:
-                            k, v = kv
-                    else:
-                        kv = elt.split()
-                        if len(kv) == 2:
-                            k, v = kv
-                            v = v.strip('"')
-                    if k is not None and v is not None:
-                        tags[k] = v
-                        if dat[2] == 'gene':
-                            if k == 'gene_type' and v in allow_biotype:
-                                has_allowed_type = True
-                            elif k == 'tag' and v in disallow_tag:
-                                has_disallowed_tag = True
-                        elif dat[2] == 'transcript':
-                            if k == 'transcript_type' and v in allow_biotype:
-                                has_allowed_type = True
-                            elif k == 'tag' and v in disallow_tag:
-                                has_disallowed_tag = True
-
-                if dat[2] == 'transcript':
-                    print("{}\t{}".format(tags['transcript_id'].split('.')[0], \
-                        tags['gene_id'].split('.')[0]), file=out_tx2gene)
-
-                if has_allowed_type and not has_disallowed_tag:
-                    if 'gene_id' in tags:
-                        ensg = tags['gene_id'].split('.')[0]
-                        name = tags['gene_name']
-                        if name == ensg:
-                            if ensg in ens2name:
-                                name = ens2name[ensg]
-                        elif ensg in ens2name and ens2name[ensg] != name:
+            if dat[0] == options.mito:
+                # Print the actual annotation data to a file that can be lifted over
+                # separately (i.e. using liftoff)
+                if 'gene_id' in tags:
+                    ensg = tags['gene_id'].split('.')[0]
+                    name = tags['gene_name']
+                    if name == ensg:
+                        if ensg in ens2name:
                             name = ens2name[ensg]
-                        
-                        hgnc = ""
-                        if 'hgnc_id' in tags:
-                            hgnc = tags['hgnc_id']
-                            if hgnc in hgnc2name and hgnc2name[hgnc] != name:
-                                name = hgnc2name[hgnc]
-                        
-                        if dat[2] == 'gene':
-                            if dat[0] == options.mito:
-                                print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene_mito)
-                                
-                                # Print the actual annotation data to a file that can be lifted over
-                                # separately (i.e. using liftoff)
-                                tags['gene_name'] = name
-                                
-                                # This is probably not necessary, but also make the gene ID unique to this
-                                # instead of keeping the Ensembl ID -- just in case there are ever any
-                                # ID collisions
-                                tags['gene_id'] += '-' + rand_tag 
-                                dat[8] = join_tags(tags)
-                                print("\t".join(dat), file=out_mito_gtf)
-                            
-                            else:
-                                print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene)
+                    elif ensg in ens2name and ens2name[ensg] != name:
+                        name = ens2name[ensg]
+                    
+                    hgnc = ""
+                    if 'hgnc_id' in tags:
+                        hgnc = tags['hgnc_id']
+                        if hgnc in hgnc2name and hgnc2name[hgnc] != name:
+                            name = hgnc2name[hgnc]
+                    
+                    tags['gene_name'] = name
+                
+                # This is probably not necessary, but also make the gene ID unique to this
+                # instead of keeping the Ensembl ID -- just in case there are ever any
+                # ID collisions
+                #tags['gene_id'] += '-' + rand_tag 
+                dat[8] = join_tags(tags)
+                print("\t".join(dat), file=out_mito_gtf)
+            
+            if dat[2] == 'transcript':
+                print("{}\t{}".format(tags['transcript_id'].split('.')[0], \
+                    tags['gene_id'].split('.')[0]), file=out_tx2gene)
+
+            if (dat[2] == 'gene' or dat[2] == 'transcript') and \
+                    has_allowed_type and not has_disallowed_tag:
+                if 'gene_id' in tags:
+                    ensg = tags['gene_id'].split('.')[0]
+                    name = tags['gene_name']
+                    if name == ensg:
+                        if ensg in ens2name:
+                            name = ens2name[ensg]
+                    elif ensg in ens2name and ens2name[ensg] != name:
+                        name = ens2name[ensg]
+                    
+                    hgnc = ""
+                    if 'hgnc_id' in tags:
+                        hgnc = tags['hgnc_id']
+                        if hgnc in hgnc2name and hgnc2name[hgnc] != name:
+                            name = hgnc2name[hgnc]
+                    
+                    if dat[2] == 'gene':
+                        if dat[0] == options.mito:
+                            print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene_mito)
                         else:
-                            if 'transcript_id' in tags:
-                                enst = tags['transcript_id'].split('.')[0]
-                                if dat[0] != options.mito:
-                                    print(enst, file=out_tx)
+                            print("{}\t{}\t{}".format(ensg, name, hgnc), file=out_gene)
+                    else:
+                        if 'transcript_id' in tags:
+                            enst = tags['transcript_id'].split('.')[0]
+                            if dat[0] != options.mito:
+                                print(enst, file=out_tx)
     f.close()
     out_gene.close()
     out_tx.close()
