@@ -95,13 +95,21 @@ If the most recent Ensembl annotation for the organism is on a different assembl
 
 You will also need to know the name of the organism of the CAT assembly as it exists in the Ensembl database. This should be lowercase first letter of species name + lowercase genus name, with no spaces. Example: hsapiens
 
+#### Filtering a human annotation to match the CAT annotation
+
+You can optionally filter a human Gencode annotation (recommended: the version of Gencode that was used to create the CAT annotation) to contain the same genes, and the same gene names, as the final CAT annotation. This is a good idea to make sure that gene names match up and that genes that exist in both annotations, but left included in only one, don't drive up/down expression of other genes as a result of being left in or out. If you choose this option, the resulting annotation will be `[output_directory]/human.gtf`.
+
 ### Run the program
 
-Everything is set up so you can just run one program (in the main directory): `filter_annotation.py`. It has a lot of arguments that will show up if you run it with `--help` or `-h.` You must provide an output file name prefix, and the final annotation will be in `[output_prefix].gtf`. 
+Use [nextflow](https://www.nextflow.io/docs/latest/index.html): copy and edit `example.yml` to a working directory, changing its options to suit your parameters. Then activate the conda environment and run the pipeline:
 
-If you installed and activated the `conda` environment `litterbox`, then you can ignore all of the arguments that provide paths to programs.
+```
+conda activate litterbox
+nextflow [/path/to/litterbox]/litterbox.nf -params-file [your_params.yml]
+```
 
-You can optionally filter a human Gencode annotation (recommended: the version of Gencode that was used to create the CAT annotation) to contain the same genes, and the same gene names, as the final CAT annotation. This is a good idea to make sure that gene names match up and that genes that exist in both annotations, but left included in only one, don't drive up/down expression of other genes as a result of being left in or out. If you choose this option, the resulting annotation will be `[output_prefix].human.gtf`.
+If using a cluster, create a `nextflow.config` file in your working directory and add [cluster-specific settings](https://www.nextflow.io/docs/latest/config.html) before running nextflow, and be sure to submit the above commands as a cluster job as appropriate.
+
 
 ### What it's doing
 
@@ -113,8 +121,11 @@ You can optionally filter a human Gencode annotation (recommended: the version o
 6. Optionally attempts to rescue some of the eliminated genes by taking their annotations from an Ensembl gene annotation. First, takes the list of genes that were eliminated because of all their transcripts being eliminated (and not directly filtered out themselves). Then converts these human Ensembl gene IDs to IDs for the species of interest, using [biomaRt](https://www.ensembl.org/info/data/biomart/index.html). Only genes with a one-to-one mapping from human ID -> other species ID are considered.
     1. If the Ensembl gene annotation you downloaded is on the same assembly coordinates, pulls the relevant genes out of the annotation and converts sequence names to those used in CAT by mapping chromosome names to each other across assemblies (matching them up based on their sequence lengths in `fai` files for both genomes).
     2. If the Ensembl gene annotation you downloaded is on different/older assembly coordinates, pulls the relevant genes out of the annotation and then lifts this annotation to the correct assembly, using the UCSC Kent tools `gtfToGenePred`, `liftOver`, and `genePredToGtf`. Then converts sequence names to those used in CAT by mapping chromosome names to each other across assemblies (matching them up based on their sequence lengths in `fai` files for both genomes). For a gene to survive make it into the final annotation, it must have a `gene` feature and at least one `transcript` and at least one `exon` feature on the new genome coordinates.
- 7. Combines the new main GTF, the mitochondrial GTF, and (optionally) the "rescued" GTF and sorts these in a way designed to make `cellranger-arc mkref` happy. The sort order matters to this program, as documented [here](https://github.com/10XGenomics/cellranger/issues/133), and the code to sort properly was taken from [chbk's suggestion](https://github.com/10XGenomics/cellranger/issues/133#issuecomment-989119662) in that issue (it's in the repository in `scripts/sort_annotation.py`).
- 8. Optionally also creates a new human annotation with the same filters: if you provide a human annotation (such as Gencode of the same version used to make the CAT annotation), filters the genes the same way as the CAT annotation, and sets the `gene_name` field to the HGNC approved symbol for each gene, provided one exists. If you are cleaning up a set of CAT annotations for multiple species all based on the same Gencode, you only need to do this once to have a corresponding human annotation. The human annotation is adjusted according to the HGNC IDs and the information in the latest Gencode release, but does not depend on the provided CAT annotation.
+ 7. Using the [svgenes](https://github.com/nkschaefer/svgenes) program, builds a synteny map between the human and CAT annotations, and throws away genes that do not fall along this path (these are likely incorrect annotations).
+    1. It attempts to rescue these genes, by pulling out the "correct" genomic sequence (according to the synteny map) and attempting to project these genes to this sequence, using liftoff. If this works, these features are included in a second draft of the assembly.
+    2. It then re-builds a synteny map, including all "rescued" genes. Some of these will map to the wrong part of the correct region and will be discarded a second time.
+ 8. Combines all surviving annotation features and sorts these in a way designed to make `cellranger-arc mkref` happy. The sort order matters to this program, as documented [here](https://github.com/10XGenomics/cellranger/issues/133), and the code to sort properly was taken from [chbk's suggestion](https://github.com/10XGenomics/cellranger/issues/133#issuecomment-989119662) in that issue (it's in the repository in `scripts/sort_annotation.py`).
+ 9. Optionally also creates a new human annotation with the same filters: if you provide a human annotation (such as Gencode of the same version used to make the CAT annotation), filters the genes the same way as the CAT annotation, and sets the `gene_name` field to the HGNC approved symbol for each gene, provided one exists. If you are cleaning up a set of CAT annotations for multiple species all based on the same Gencode, you only need to do this once to have a corresponding human annotation. The human annotation is adjusted according to the HGNC IDs and the information in the latest Gencode release, but does not depend on the provided CAT annotation.
 
 ### How about that
 
