@@ -482,13 +482,18 @@ process remap_segment{
     
     script:
     """
-    bedtools getfasta -fi ${fasta} -bed ${bed} -fo remap.fa
-    liftoff -g ${gtf} -o remap.${id}.unfilt.gtf -u unmapped.txt remap.fa ${fasta}
-    start_pos=\$( cat ${bed} | tail -1 | cut -f2 )
-    chrom=\$( cat ${bed} | tail -1 | cut -f1 )
-    ${baseDir}/scripts/filter_liftoff_gtf.py -g remap.${id}.unfilt.gtf -c \$chrom \
-        -p \$start_pos --gene_name ${params.gene_name} --gene_id ${params.gene_id} \
-        -o remap.${id}.gtf -G remap.${id}.genes
+    if [ \$( cat ${gtf} | wc -l ) -gt 0 ]; then
+        bedtools getfasta -fi ${fasta} -bed ${bed} -fo remap.fa
+        liftoff -g ${gtf} -o remap.${id}.unfilt.gtf -u unmapped.txt remap.fa ${fasta}
+        start_pos=\$( cat ${bed} | tail -1 | cut -f2 )
+        chrom=\$( cat ${bed} | tail -1 | cut -f1 )
+        ${baseDir}/scripts/filter_liftoff_gtf.py -g remap.${id}.unfilt.gtf -c \$chrom \
+            -p \$start_pos --gene_name ${params.gene_name} --gene_id ${params.gene_id} \
+            -o remap.${id}.gtf -G remap.${id}.genes
+    else
+        echo "" > remap.${id}.genes
+        echo "" > remap.${id}.gtf
+    fi
     """
 }
 
@@ -640,8 +645,6 @@ workflow{
             return [match[0], match[1], gtf ]
         }
         
-        gtf2.view()
- 
         // Contents:
         // Species1 (human) GTF
         // Species2 (other) GTF
@@ -650,8 +653,6 @@ workflow{
         // list of BED segments for re-mapping removed species2 genes
         // list of GTF genes for re-mapping removed species2 genes
         svgenes_out = gtf1.combine(gtf2).combine(Channel.fromPath(params.hg38_fasta)).combine(Channel.fromPath(params.cat_fasta)) | svgenes
-        
-        svgenes_out.view()
         
         // Get all segments to re-map 
         remapped = svgenes_out.flatMap{ tup -> 
