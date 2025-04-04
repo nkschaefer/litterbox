@@ -100,7 +100,11 @@ def get_tags(dat):
 def join_tags(tags):
     tagprint = []
     for k in tags:
-        tagprint.append('{} "{}"'.format(k, tags[k]))
+        if isinstance(tags[k], list):
+            for item in tags[k]:
+                tagprint.append('{} "{}"'.format(k, item))
+        else:
+            tagprint.append('{} "{}"'.format(k, tags[k]))
     return "; ".join(tagprint) + ";"
 
 """
