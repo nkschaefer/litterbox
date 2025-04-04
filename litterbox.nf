@@ -543,6 +543,10 @@ process finalize{
     """
     cp ${svgenes_pdf} synteny.pdf
     cat ${rm_orig} | cut -f2 > rmnames
+    wc -l rmnames
+    wc -l ${rescue_genes} 
+    wc -l ${rm_svgenes1}
+    wc -l ${rm_svgenes}
     cat rmnames ${rm_svgenes1} | grep -v -f ${rescue_genes} | sort | uniq > rm1
     cat rm1 ${rm_svgenes} | sort | uniq > litterbox.genes_removed.txt
     ${baseDir}/scripts/sort_annotation.py -o litterbox.gtf \
@@ -588,86 +592,87 @@ workflow{
             rescued = homology.combine(Channel.fromPath(params.ens_gtf)).combine(Channel.fromPath(params.chain)).combine(Channel.fromPath(params.hgnc_ens)).combine(assmap) | lift_ensembl
             
         }
-        
-        /*
-        to_sort.combine(rescued.map{ tup -> 
-            tup[1] 
-        }) | sort_annotation_rescued
-        
-        cat_dat.map{ tup -> 
-            [tup[1], tup[2], tup[3]]
-        }.combine(rescued) | publish_rescue        
-        */
-        genesrm = cat_dat.map{ tup -> tup[1] }.combine(rescued) | filter_rm
-        gtfcat = to_sort.combine(rescued.map{ tup -> 
-            tup[1]
-        }) | cat_gtf_rescue     
+        if (params.synteny){
+            genesrm = cat_dat.map{ tup -> tup[1] }.combine(rescued) | filter_rm
+            gtfcat = to_sort.combine(rescued.map{ tup -> 
+                tup[1]
+            }) | cat_gtf_rescue
+        }
+        else{
+            to_sort.combine(rescued.map{ tup -> 
+                tup[1] 
+            }) | sort_annotation_rescued
+            
+            cat_dat.map{ tup -> 
+                [tup[1], tup[2], tup[3]]
+            }.combine(rescued) | publish_rescue        
+        }
+             
     }
     else{
-        /*
-        sort_annotation(to_sort)
-        cat_dat.map{ tup ->
-            [tup[1], tup[2], tup[3]]
-        } | publish_norescue
-        */
-        genesrm = cat_dat.map{ tup -> tup[1] } | rename_rm
-        gtfcat = cat_gtf(to_sort) 
+        if (params.synteny){
+            genesrm = cat_dat.map{ tup -> tup[1] } | rename_rm
+            gtfcat = cat_gtf(to_sort)   
+        }
+        else{
+            sort_annotation(to_sort)
+            cat_dat.map{ tup ->
+                [tup[1], tup[2], tup[3]]
+            } | publish_norescue
+        }
     }
     
-    // Now run svgenes
-    gtf1 = Channel.fromPath(params.gencode).map{ gtf -> 
-        def match = ( gtf =~ /([^\/]+).(gtf|gff|gff3)/)[0]
-        return [ match[0], match[1], gtf ]
+    if (params.synteny){ 
+        // Now run svgenes
+        gtf1 = Channel.fromPath(params.gencode).map{ gtf -> 
+            def match = ( gtf =~ /([^\/]+).(gtf|gff|gff3)/)[0]
+            return [ match[0], match[1], gtf ]
+        }
+        gtf2 = gtfcat.map{ gtf -> 
+            def match = ( gtf =~ /([^\/]+).(gtf|gff|gff3)/)[0]
+            return [match[0], match[1], gtf ]
+        }
+        
+        // Contents:
+        // Species1 (human) GTF
+        // Species2 (other) GTF
+        // Species1 (human) removed gene list
+        // Species2 (other) removed gene list
+        // list of BED segments for re-mapping removed species2 genes
+        // list of GTF genes for re-mapping removed species2 genes
+        svgenes_out = gtf1.combine(gtf2).combine(Channel.fromPath(params.hg38_fasta)).combine(Channel.fromPath(params.cat_fasta)) | svgenes
+        
+        // Get all segments to re-map 
+        remapped = svgenes_out.flatMap{ tup -> 
+            tup[5]
+        }.map{ fn -> 
+            def uid = (fn =~ /synteny1.remap.segment.([0-9]+).bed/)[0][1]
+            return [uid, fn]    
+        }.join(svgenes_out.flatMap{ tup -> 
+            tup[6]
+        }.map{ fn -> 
+            def uid = (fn =~ /synteny1.remap.segment.([0-9]+).gtf/)[0][1]
+            return [uid, fn]
+        }).combine(unzip_or_passthrough_fa(Channel.fromPath(params.cat_fasta))) | remap_segment
+        
+        remap_gtfs = remapped.map{ tup -> 
+            tup[0] 
+        }.collect() | cat_remap_gtfs
+        remap_gtfs2 = remap_gtfs.combine(svgenes_out.map{ tup -> tup[2] }) | cat_remap_gtfs2
+        remap_genes = remapped.map{ tup -> 
+            tup[1]
+        }.collect() | cat_remap_genes
+        
+        svgenes_gtf = svgenes_out.map{ tup ->
+            def match = ( tup[2] =~ /([^\/]+).(gtf|gff|gff3)/)[0]
+            return [match[0], match[1], tup[2] ]
+        }
+         
+        svgenes2_out = gtf1.combine(svgenes_gtf).combine(Channel.fromPath(params.hg38_fasta)).combine(Channel.fromPath(params.cat_fasta)) | svgenes2
+       
+        genesrm.combine(svgenes_out.map{ tup -> [tup[0], tup[4]] }).combine(svgenes2_out.map{ tup -> 
+            return [tup[2], tup[4]]
+        }).combine(remap_genes) | finalize
     }
-    gtf2 = gtfcat.map{ gtf -> 
-        def match = ( gtf =~ /([^\/]+).(gtf|gff|gff3)/)[0]
-        return [match[0], match[1], gtf ]
-    }
-    
-    // Contents:
-    // Species1 (human) GTF
-    // Species2 (other) GTF
-    // Species1 (human) removed gene list
-    // Species2 (other) removed gene list
-    // list of BED segments for re-mapping removed species2 genes
-    // list of GTF genes for re-mapping removed species2 genes
-    svgenes_out = gtf1.combine(gtf2).combine(Channel.fromPath(params.hg38_fasta)).combine(Channel.fromPath(params.cat_fasta)) | svgenes
-    
-    // Get all segments to re-map 
-    remapped = svgenes_out.flatMap{ tup -> 
-        tup[5]
-    }.map{ fn -> 
-        def uid = (fn =~ /synteny1.remap.segment.([0-9]+).bed/)[0][1]
-        return [uid, fn]    
-    }.join(svgenes_out.flatMap{ tup -> 
-        tup[6]
-    }.map{ fn -> 
-        def uid = (fn =~ /synteny1.remap.segment.([0-9]+).gtf/)[0][1]
-        return [uid, fn]
-    }).combine(unzip_or_passthrough_fa(Channel.fromPath(params.cat_fasta))) | remap_segment
-    
-    remap_gtfs = remapped.map{ tup -> 
-        tup[0] 
-    }.collect() | cat_remap_gtfs
-    remap_gtfs2 = remap_gtfs.combine(svgenes_out.map{ tup -> tup[2] }) | cat_remap_gtfs2
-    remap_genes = remapped.map{ tup -> 
-        tup[1]
-    }.collect() | cat_remap_genes
-    
-    svgenes_gtf = svgenes_out.map{ tup ->
-        def match = ( tup[2] =~ /([^\/]+).(gtf|gff|gff3)/)[0]
-        return [match[0], match[1], tup[2] ]
-    }
-     
-    svgenes2_out = gtf1.combine(svgenes_gtf).combine(Channel.fromPath(params.hg38_fasta)).combine(Channel.fromPath(params.cat_fasta)) | svgenes2
-   
-    genesrm.combine(svgenes_out.map{ tup -> [tup[0], tup[4]] }).combine(svgenes2_out.map{ tup -> 
-        return [tup[2], tup[4]]
-    }).combine(remap_genes) | view()
- 
-    genesrm.combine(svgenes_out.map{ tup -> [tup[0], tup[4]] }).combine(svgenes2_out.map{ tup -> 
-        return [tup[2], tup[4]]
-    }).combine(remap_genes) | finalize
-     
 }
 

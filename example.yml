@@ -1,0 +1,39 @@
+# Where to store results
+output_directory: 'out'
+# Human annotation file from GENCODE (gff3)
+gencode: "/path/to/gencode.v33.primary_assembly.annotation.gff3"
+# CAT annotation to filter
+cat_gff3: "/path/to/species_CAT_annotation.gff3"
+# (bgzipped or not) FASTA file for species with CAT annotation
+cat_fasta: "/path/to/species_CAT.fa.gz"
+# (bgzipped or not) FASTA file for hg38
+hg38_fasta: "/path/to/hg38.fa"
+# Name of mitochondrial sequence in CAT genome
+cat_mito: "chrM"
+# Use synteny to filter genes? If false, only discards blacklisted
+# gene/transcript types
+synteny: true
+# ===== OPTIONAL =====
+# Optionally filter a human annotation (e.g. 10X) to only 
+# include genes and transcripts in the filtered list, and 
+# to use the HGNC-preferred names. 
+# human_annotation: "genes.gtf.gz"
+# ===== OPTIONAL: rescue genes from an Ensembl annotation
+# Attempt to rescue removed genes from an Ensembl annotation? 
+scavenge_ens: true
+# ID of genome in Ensembl. Should be like this: hsapiens for Homo sapiens
+ens_id: "mmulatta"
+# Ensembl GTF/GFF to scavenge (can be gzipped)
+ens_gtf: "/path/to/species_ensembl.gtf.gz" 
+# If the Ensembl annotation corresponds to the same assembly you're using
+# (in CAT), provide a FASTA file for the annotation
+ens_fasta: "/path/to/species_ensembl.fasta.gz"
+# If the Ensembl annotation corresponds to a different version assembly
+# for the same organism you're using (in CAT), provide a UCSC chain file
+# to lift from the Ensembl version to the current (CAT) version
+chain: null
+# If the Ensembl annotation corresponds to a different version assembly
+# for the same organism and you are providing a UCSC chain file to list
+# from the old/Ensembl version to the new version, you must provide a 
+# FASTA for the UCSC versioned assembly here
+ucsc_fasta: null
