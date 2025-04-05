@@ -13,6 +13,10 @@ if (!params.cat_fasta){
 if (!params.hg38_fasta){
     error("hg38_fasta is required")
 }
+if (!params.gencode){
+    error("human gencode annotation is required")
+}
+
 if (params.scavenge_ens){
     if (!params.ens_gtf){
         error("ens_gtf is required if scavenging an Ensembl annotation")
