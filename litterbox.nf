@@ -459,7 +459,7 @@ process unzip_or_passthrough_fa{
     path("*unzip.fa")
     
     script:
-    def fabase = (fasta.toString() =~ /(.+).(fa|fasta)(.gz)/)[0][1]
+    def fabase = (fasta.toString() =~ /(.+).(fa|fasta)(.gz)?/)[0][1]
     """
     if [ \$( echo -e "${fasta}" | grep ".gz" | wc -l ) -gt 0 ]; then
         gunzip -c ${fasta} > ${fabase}.unzip.fa
