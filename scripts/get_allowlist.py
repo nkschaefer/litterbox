@@ -178,8 +178,10 @@ def main(args):
                     has_allowed_type and not has_disallowed_tag:
                 if 'gene_id' in tags:
                     ensg = tags['gene_id'].split('.')[0]
-                    name = tags['gene_name']
-                    if name == ensg:
+                    name = None
+                    if 'gene_name' in tags:
+                        name = tags['gene_name']
+                    if name == ensg or name is None:
                         if ensg in ens2name:
                             name = ens2name[ensg]
                     elif ensg in ens2name and ens2name[ensg] != name:
