@@ -133,12 +133,12 @@ def main(args):
                 if k is not None and v is not None:
                     tags[k] = v
                     if dat[2] == 'gene':
-                        if k == 'gene_type' and v in allow_biotype:
+                        if (k == 'gene_type' or k == 'gene_biotype') and v in allow_biotype:
                             has_allowed_type = True
                         elif k == 'tag' and v in disallow_tag:
                             has_disallowed_tag = True
                     elif dat[2] == 'transcript':
-                        if k == 'transcript_type' and v in allow_biotype:
+                        if (k == 'transcript_type' or k == 'transcript_biotype') and v in allow_biotype:
                             has_allowed_type = True
                         elif k == 'tag' and v in disallow_tag:
                             has_disallowed_tag = True
