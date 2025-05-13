@@ -52,6 +52,12 @@ on the mitochondrial genome.",
         help="Output GTF file to create",
         required=True
     )
+    parser.add_argument(
+        "--mito_name",
+        "-M",
+        help="Name of mitochondrial genome in the human annotation (OPTIONAL, default chrM)",
+        required=False
+    )
     return parser.parse_args()
 
 """
@@ -129,33 +135,37 @@ def main(args):
             dat = line.split('\t')
             tags = get_tags(dat)
             par = False 
-            if 'gene_id' in tags:
-                if '_PAR_Y' in tags['gene_id']:
-                    # Skip this
-                    par = True
-                else:
-                    ensg = tags['gene_id'].split('.')[0]
-                    if ensg in ensg2n:
-                        tags['gene_name'] = ensg2n[ensg]
-                        tags['gene_id'] = ensg
-                        print_feature = True
-                        if 'transcript_id' in tags:
-                            # Also ensure it's a valid transcript.
-                            txid = tags['transcript_id'].split('.')[0]
-                            if txid in tx_allowed:
-                                print_feature = True
-                            else:
-                                print_feature = False
-                            tags['transcript_id'] = txid
-                        if 'tag' in tags:
-                            for x in tags['tag']:
-                                if x == 'readthrough_transcript' or x == 'PAR' or \
-                                    x == 'stop_codon_readthrough' or x == 'low_sequence_quality':
+            if dat[0] == options.mito_name:
+                # Ensure we keep all records on the mitochondrion
+                print(line, file=outf)
+            else:
+                if 'gene_id' in tags:
+                    if '_PAR_Y' in tags['gene_id']:
+                        # Skip this
+                        par = True
+                    else:
+                        ensg = tags['gene_id'].split('.')[0]
+                        if ensg in ensg2n:
+                            tags['gene_name'] = ensg2n[ensg]
+                            tags['gene_id'] = ensg
+                            print_feature = True
+                            if 'transcript_id' in tags:
+                                # Also ensure it's a valid transcript.
+                                txid = tags['transcript_id'].split('.')[0]
+                                if txid in tx_allowed:
+                                    print_feature = True
+                                else:
                                     print_feature = False
-                                    break
-                        if print_feature:
-                            dat[8] = join_tags(tags)
-                            print("\t".join(dat), file=outf)
+                                tags['transcript_id'] = txid
+                            if 'tag' in tags:
+                                for x in tags['tag']:
+                                    if x == 'readthrough_transcript' or x == 'PAR' or \
+                                        x == 'stop_codon_readthrough' or x == 'low_sequence_quality':
+                                        print_feature = False
+                                        break
+                            if print_feature:
+                                dat[8] = join_tags(tags)
+                                print("\t".join(dat), file=outf)
     outf.close()
 
 if __name__ == '__main__':
